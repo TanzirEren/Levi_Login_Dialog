@@ -2,6 +2,9 @@ package com.levi.admin;
 
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
+import android.widget.ProgressBar;
+import java.io.File;
+import java.io.FileInputStream;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -153,6 +156,20 @@ public class Editor {
         media(s, "bgType", "bgSrc", new String[]{"gradient", "image", "video"}, 1080, "Background");
         s.addView(UI.tv(A, "Gradient preset", 13, UI.tx(), true), UI.lp(A, -2, -2, 0, 10, 0, 6));
         gradGrid(s);
+        LinearLayout gr = UI.row(A);
+        gr.addView(UI.btn(A, "Colours from gallery image", false, v -> A.pick("image/*", u -> new Thread(() -> {
+            Bitmap bm = null;
+            try { bm = Levi.decode(A.readUri(u), 256); } catch (Exception e) { /* ignore */ }
+            final Bitmap fb = bm;
+            h.post(() -> applyExtracted(fb));
+        }).start())), UI.lp(A, -2, -2, 0, 0, 8, 0));
+        String curSrc = Levi.S(cfg, "bgSrc", "");
+        if (!curSrc.isEmpty() && "image".equals(Levi.S(cfg, "bgType", "gradient")))
+            gr.addView(UI.btn(A, "From current image", false, v -> Levi.loadBitmap(curSrc, 256, b -> applyExtracted(b))));
+        android.widget.HorizontalScrollView gs = new android.widget.HorizontalScrollView(A);
+        gs.setHorizontalScrollBarEnabled(false);
+        gs.addView(gr);
+        s.addView(gs, UI.lp(A, -1, -2, 0, 4, 0, 6));
         sw(s, "Custom gradient colours", "gcustom", false);
         clr(s, "Gradient colour 1", "gc1", "#FF9A8B");
         clr(s, "Gradient colour 2", "gc2", "#FF6A88");
@@ -232,6 +249,7 @@ public class Editor {
         hd.setOnClickListener(v -> {
             boolean now = body.getVisibility() != View.VISIBLE;
             body.setVisibility(now ? View.VISIBLE : View.GONE);
+            if (now && UI.anim) { body.setAlpha(0); body.setTranslationY(-UI.dp(A, 10)); body.animate().alpha(1).translationY(0).setDuration(260).start(); }
             hd.setText((now ? "\u25BE  " : "\u25B8  ") + title);
             open.put(title, now);
         });
@@ -355,6 +373,7 @@ public class Editor {
             cell.setOnClickListener(v -> {
                 try { cfg.put("gcustom", false); } catch (Exception e) { /* ignore */ }
                 put("grad", idx);
+                if (Levi.I(cfg, "bgFx", 0) == 0) put("bgFx", 20);
                 if (!"image".equals(Levi.S(cfg, "bgType", "gradient")) && !"video".equals(Levi.S(cfg, "bgType", "gradient"))) put("bgType", "gradient");
                 build();
             });
@@ -396,7 +415,10 @@ public class Editor {
         LinearLayout r = UI.row(A);
         r.addView(UI.btn(A, "Gallery", false, v -> {
             final boolean vid = "video".equals(Levi.S(cfg, typeKey, types[0]));
-            A.pick(vid ? "video/*" : "image/*", u -> process(u, vid, maxSide, typeKey, srcKey, st));
+            A.pick(vid ? "video/*" : "image/*", u -> {
+                if (vid && UI.compress && sizeOf(u) > (long) UI.maxMb * 1024 * 1024) compress(u, typeKey, srcKey, st, 1);
+                else process(u, vid, maxSide, typeKey, srcKey, st);
+            });
         }), UI.lp(A, -2, -2, 0, 10, 8, 0));
         r.addView(UI.btn(A, "Clear", false, v -> { put(srcKey, ""); if (typeKey.equals("bgType")) put(typeKey, "gradient"); build(); }), UI.lp(A, -2, -2, 0, 10, 0, 0));
         p.addView(r);
@@ -436,6 +458,101 @@ public class Editor {
                 st.setText("Using gallery file");
             });
         }).start();
+    }
+
+    long sizeOf(android.net.Uri u) {
+        try {
+            android.content.res.AssetFileDescriptor f = A.getContentResolver().openAssetFileDescriptor(u, "r");
+            long n = f.getLength();
+            f.close();
+            return n;
+        } catch (Exception e) { return 0; }
+    }
+
+    /** Auto-compress a big gallery video, then store it like any other media. pass 1 = normal, 2 = harder retry. */
+    void compress(final android.net.Uri u, final String typeKey, final String srcKey, final TextView st, final int pass) {
+        final long before = sizeOf(u);
+        final long target = (long) (UI.maxMb * 1024L * 1024L * (pass == 1 ? 0.9 : 0.55));
+        final ProgressBar pb = new ProgressBar(A, null, android.R.attr.progressBarStyleHorizontal);
+        pb.setMax(100);
+        final TextView msg = UI.tv(A, "Compressing video...  0%", 14, UI.tx(), false);
+        LinearLayout box = UI.col(A);
+        int p = UI.dp(A, 20);
+        box.setPadding(p, p, p, p);
+        box.addView(msg);
+        box.addView(pb, UI.lp(A, -1, -2, 0, 12, 0, 0));
+        box.addView(UI.tv(A, String.format(Locale.US, "Original %.1f MB \u2192 target under %d MB. Please keep the app open.", before / 1048576f, UI.maxMb), 11, UI.sub(), false), UI.lp(A, -1, -2, 0, 10, 0, 0));
+        final AlertDialog dlg = new AlertDialog.Builder(A).setTitle("Video too large").setView(box).setCancelable(false).create();
+        dlg.show();
+        Compressor.run(A, u, target, new Compressor.Cb() {
+            @Override public void progress(int pct) { pb.setProgress(pct); msg.setText("Compressing video...  " + pct + "%"); }
+            @Override public void done(final File out, String err) {
+                if (err != null || out == null) { dlg.dismiss(); st.setText(err); UI.toast(A, err == null ? "Compression failed" : err); return; }
+                msg.setText("Finishing...");
+                new Thread(() -> {
+                    byte[] raw = null;
+                    try {
+                        FileInputStream in = new FileInputStream(out);
+                        raw = Levi.readAll(in);
+                    } catch (Exception e) { /* handled below */ }
+                    out.delete();
+                    final byte[] fr = raw;
+                    h.post(() -> {
+                        dlg.dismiss();
+                        if (fr == null) { UI.toast(A, "Compression failed"); return; }
+                        if (fr.length > 6 * 1024 * 1024) {
+                            if (pass == 1) { compress(u, typeKey, srcKey, st, 2); return; }
+                            st.setText("Still too large after compression - use a URL");
+                            UI.toast(A, "Video is still too large - use a shorter clip or a URL");
+                            return;
+                        }
+                        put(srcKey, "data:video/mp4;base64," + Base64.encodeToString(fr, Base64.NO_WRAP));
+                        if (typeKey.equals("bgType")) put(typeKey, "video");
+                        st.setText("Using gallery file (compressed)");
+                        UI.toast(A, String.format(Locale.US, "Compressed %.1f MB \u2192 %.1f MB", before / 1048576f, fr.length / 1048576f));
+                    });
+                }).start();
+            }
+        });
+    }
+
+    // ================================================================ gradient colours from an image ===
+    static int[] extract(Bitmap b) {
+        Bitmap s = Bitmap.createScaledBitmap(b, 32, 32, true);
+        float[][] acc = new float[12][4];
+        float[] hsv = new float[3];
+        for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++) {
+            int c = s.getPixel(x, y);
+            Color.colorToHSV(c, hsv);
+            float w = 0.05f + hsv[1] * hsv[2];
+            if (hsv[2] < 0.12f) w *= 0.2f;
+            int bk = ((int) (hsv[0] / 30f)) % 12;
+            acc[bk][0] += w; acc[bk][1] += Color.red(c) * w; acc[bk][2] += Color.green(c) * w; acc[bk][3] += Color.blue(c) * w;
+        }
+        int i1 = 0;
+        for (int i = 1; i < 12; i++) if (acc[i][0] > acc[i1][0]) i1 = i;
+        int i2 = -1;
+        for (int i = 0; i < 12; i++) {
+            int d = Math.min(Math.abs(i - i1), 12 - Math.abs(i - i1));
+            if (d >= 2 && acc[i][0] > 0.4f && (i2 < 0 || acc[i][0] > acc[i2][0])) i2 = i;
+        }
+        int c1 = Color.rgb((int) (acc[i1][1] / acc[i1][0]), (int) (acc[i1][2] / acc[i1][0]), (int) (acc[i1][3] / acc[i1][0]));
+        int c2;
+        if (i2 >= 0) c2 = Color.rgb((int) (acc[i2][1] / acc[i2][0]), (int) (acc[i2][2] / acc[i2][0]), (int) (acc[i2][3] / acc[i2][0]));
+        else { Color.colorToHSV(c1, hsv); hsv[2] = Math.max(0.2f, hsv[2] * 0.5f); c2 = Color.HSVToColor(hsv); }
+        return new int[]{c1, c2};
+    }
+
+    void applyExtracted(Bitmap b) {
+        if (b == null) { UI.toast(A, "Can't read image"); return; }
+        int[] c = extract(b);
+        try { cfg.put("gcustom", true); } catch (Exception e) { /* ignore */ }
+        put("gc1", UI.hex(c[0] | 0xFF000000));
+        put("gc2", UI.hex(c[1] | 0xFF000000));
+        put("bgType", "gradient");
+        if (Levi.I(cfg, "bgFx", 0) == 0) put("bgFx", 20);
+        UI.toast(A, "Gradient colours taken from image");
+        build();
     }
 
     // ================================================================ save =====================

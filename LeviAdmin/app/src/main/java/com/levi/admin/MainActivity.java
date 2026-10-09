@@ -55,9 +55,11 @@ public class MainActivity extends Activity {
     final HashMap<String, Bitmap> iconCache = new HashMap<>();
 
     FrameLayout homeContent;
-    LinearLayout navBar;
-    View fab;
-    int tab = 0;
+    FrameLayout navWrap;
+    LinearLayout navRow;
+    View navInd, fab;
+    UI.Aurora aurora;
+    int tab = 0, bottomPad = 0;
 
     public interface PickCb { void got(Uri u); }
     PickCb pend;
@@ -72,9 +74,17 @@ public class MainActivity extends Activity {
         sp = getSharedPreferences("levi_admin", 0);
         UI.dark = sp.getBoolean("dark", false);
         UI.anim = sp.getBoolean("anim", true);
+        UI.aurora = sp.getBoolean("aurora", true);
+        UI.compress = sp.getBoolean("compress", true);
+        UI.glass = sp.getInt("glass", 70);
+        UI.fontIdx = sp.getInt("uifont", 0);
+        UI.maxMb = sp.getInt("maxmb", 5);
+        UI.setAccent(sp.getInt("accent", 0));
         base = sp.getString("db", "");
         Levi.dbBase = base;
         root = new FrameLayout(this);
+        aurora = new UI.Aurora(this);
+        root.addView(aurora, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         theme();
         if (base.isEmpty()) push(connectScreen());
@@ -84,6 +94,7 @@ public class MainActivity extends Activity {
 
     void theme() {
         root.setBackgroundColor(UI.bg());
+        aurora.restart();
         getWindow().setStatusBarColor(UI.bg());
         getWindow().setNavigationBarColor(UI.bg());
         getWindow().getDecorView().setSystemUiVisibility(UI.dark ? 0 : (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | 0x10));
@@ -116,25 +127,28 @@ public class MainActivity extends Activity {
 
     // =============================================================== navigation ===============
     public void push(final View v) {
-        v.setBackgroundColor(UI.bg());
+        final View prev = stack.isEmpty() ? null : stack.get(stack.size() - 1);
         root.addView(v, new FrameLayout.LayoutParams(-1, -1));
         stack.add(v);
-        if (UI.anim && stack.size() > 1) {
-            v.setTranslationX(root.getWidth() > 0 ? root.getWidth() : 1000);
-            v.setAlpha(.6f);
-            v.animate().translationX(0).alpha(1).setDuration(280).start();
+        if (prev != null) {
+            if (UI.anim) {
+                v.setTranslationX(root.getWidth() > 0 ? root.getWidth() : 1000);
+                v.setAlpha(.6f);
+                v.animate().translationX(0).alpha(1).setDuration(280).withEndAction(() -> prev.setVisibility(View.GONE)).start();
+            } else prev.setVisibility(View.GONE);
         }
     }
 
     public void pop() {
         if (stack.size() <= 1) return;
         final View v = stack.remove(stack.size() - 1);
+        stack.get(stack.size() - 1).setVisibility(View.VISIBLE);
         if (UI.anim) v.animate().translationX(root.getWidth()).alpha(.5f).setDuration(220).withEndAction(() -> root.removeView(v)).start();
         else root.removeView(v);
     }
 
     public void replace(View v) {
-        root.removeAllViews();
+        for (View o : stack) root.removeView(o);
         stack.clear();
         push(v);
     }
@@ -176,13 +190,15 @@ public class MainActivity extends Activity {
         logo.setGravity(Gravity.CENTER);
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{UI.PRI, UI.PRI2});
         g.setShape(GradientDrawable.OVAL);
+        g.setStroke(UI.dp(this, 3), 0xCCFFFFFF);
         logo.setBackground(g);
-        logo.setElevation(UI.dp(this, 6));
+        logo.setElevation(UI.dp(this, 8));
         l.addView(logo, new LinearLayout.LayoutParams(UI.dp(this, 78), UI.dp(this, 78)));
         l.addView(UI.tv(this, title, 24, UI.tx(), true), UI.lp(this, -2, -2, 0, 16, 0, 2));
         TextView s = UI.tv(this, sub, 13, UI.sub(), false);
         s.setGravity(Gravity.CENTER);
         l.addView(s);
+        if (UI.anim) { android.animation.ObjectAnimator fl = android.animation.ObjectAnimator.ofFloat(logo, "translationY", 0, -UI.dp(this, 7)); fl.setDuration(1800); fl.setRepeatCount(-1); fl.setRepeatMode(2); fl.setStartDelay(600); fl.start(); }
         if (UI.anim) { logo.setScaleX(.2f); logo.setScaleY(.2f); logo.animate().scaleX(1).scaleY(1).setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(2.4f)).start(); }
         return l;
     }
@@ -192,7 +208,7 @@ public class MainActivity extends Activity {
         sv.setFillViewport(true);
         sv.setVerticalScrollBarEnabled(false);
         int p = UI.dp(this, 18);
-        c.setPadding(p, p, p, p);
+        c.setPadding(p, p, p, p + bottomPad);
         sv.addView(c, new FrameLayout.LayoutParams(-1, -2));
         return sv;
     }
@@ -386,61 +402,112 @@ public class MainActivity extends Activity {
     // =============================================================== home ======================
     View home() {
         FrameLayout outer = new FrameLayout(this);
-        LinearLayout page = UI.col(this);
         homeContent = new FrameLayout(this);
-        page.addView(homeContent, new LinearLayout.LayoutParams(-1, 0, 1f));
-        navBar = UI.row(this);
-        navBar.setBackgroundColor(UI.surf());
-        navBar.setElevation(UI.dp(this, 8));
-        String[] ic = {"\u2302", "\u25A4", "\u2754", "\u2699"};
+        outer.addView(homeContent, new FrameLayout.LayoutParams(-1, -1));
+
+        // ---- floating glass navigation bar (fully rounded) ----
+        navWrap = new FrameLayout(this);
+        GradientDrawable ng = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                UI.dark ? new int[]{0xD9193A2E, 0xCC0E2219} : new int[]{0xEBFFFFFF, 0xCCE3F6EB});
+        ng.setCornerRadius(UI.dp(this, 100));
+        ng.setStroke(UI.dp(this, 1), UI.glassEdge());
+        navWrap.setBackground(ng);
+        navWrap.setElevation(UI.dp(this, 12));
+        navInd = new View(this);
+        navInd.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{UI.PRI, UI.mix(UI.PRI, UI.PRI2, 0.6f)}) {{ setCornerRadius(UI.dp(MainActivity.this, 100)); }});
+        navWrap.addView(navInd, new FrameLayout.LayoutParams(0, UI.dp(this, 54), Gravity.CENTER_VERTICAL));
+        navRow = UI.row(this);
+        navRow.setPadding(UI.dp(this, 6), 0, UI.dp(this, 6), 0);
         String[] nm = {"Home", "Apps", "Guide", "Settings"};
         for (int i = 0; i < 4; i++) {
             final int k = i;
             LinearLayout t = UI.col(this);
             t.setGravity(Gravity.CENTER);
-            t.setPadding(0, UI.dp(this, 9), 0, UI.dp(this, 9));
-            t.addView(UI.tv(this, ic[i], 20, UI.sub(), false));
-            t.addView(UI.tv(this, nm[i], 11, UI.sub(), true));
+            UI.NavIcon ic = new UI.NavIcon(this, i);
+            t.addView(ic, new LinearLayout.LayoutParams(UI.dp(this, 24), UI.dp(this, 24)));
+            TextView lb = UI.tv(this, nm[i], 9.5f, UI.sub(), true);
+            lb.setSingleLine(true);
+            t.addView(lb, UI.lp(this, -2, -2, 0, 2, 0, 0));
             t.setOnClickListener(v -> selectTab(k));
-            navBar.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
+            navRow.addView(t, new LinearLayout.LayoutParams(0, -1, 1f));
         }
-        page.addView(navBar, new LinearLayout.LayoutParams(-1, -2));
-        outer.addView(page, new FrameLayout.LayoutParams(-1, -1));
+        navWrap.addView(navRow, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout.LayoutParams nl = new FrameLayout.LayoutParams(-1, UI.dp(this, 68), Gravity.BOTTOM);
+        nl.setMargins(UI.dp(this, 22), 0, UI.dp(this, 22), UI.dp(this, 16));
+        outer.addView(navWrap, nl);
+        if (UI.anim) { navWrap.setTranslationY(UI.dp(this, 120)); navWrap.animate().translationY(0).setStartDelay(150).setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(1.1f)).start(); }
+
+        // ---- FAB ----
         TextView f = UI.tv(this, "+", 30, 0xFFFFFFFF, false);
         f.setGravity(Gravity.CENTER);
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{UI.PRI, UI.PRI2});
         g.setShape(GradientDrawable.OVAL);
+        g.setStroke(UI.dp(this, 2), 0xAAFFFFFF);
         f.setBackground(g);
-        f.setElevation(UI.dp(this, 8));
+        f.setElevation(UI.dp(this, 10));
         f.setOnClickListener(v -> addDialog());
         UI.press(f);
-        FrameLayout.LayoutParams fl = new FrameLayout.LayoutParams(UI.dp(this, 60), UI.dp(this, 60), Gravity.BOTTOM | Gravity.END);
-        fl.setMargins(0, 0, UI.dp(this, 20), UI.dp(this, 84));
+        FrameLayout.LayoutParams fl = new FrameLayout.LayoutParams(UI.dp(this, 58), UI.dp(this, 58), Gravity.BOTTOM | Gravity.END);
+        fl.setMargins(0, 0, UI.dp(this, 26), UI.dp(this, 100));
         outer.addView(f, fl);
         fab = f;
-        if (UI.anim) { f.setScaleX(0); f.setScaleY(0); f.animate().scaleX(1).scaleY(1).setStartDelay(300).setDuration(420).setInterpolator(new android.view.animation.OvershootInterpolator(3f)).start(); }
+        if (UI.anim) {
+            f.setScaleX(0); f.setScaleY(0); f.setRotation(-90);
+            f.animate().scaleX(1).scaleY(1).rotation(0).setStartDelay(400).setDuration(520).setInterpolator(new android.view.animation.OvershootInterpolator(3f))
+                    .withEndAction(() -> {
+                        android.animation.ObjectAnimator a = android.animation.ObjectAnimator.ofPropertyValuesHolder(fab,
+                                android.animation.PropertyValuesHolder.ofFloat("scaleX", 1f, 1.08f), android.animation.PropertyValuesHolder.ofFloat("scaleY", 1f, 1.08f));
+                        a.setDuration(1100); a.setRepeatCount(-1); a.setRepeatMode(2); a.start();
+                    }).start();
+        }
         selectTab(tab);
         return outer;
     }
 
+    void moveInd(final int i, final boolean animate) {
+        navRow.post(() -> {
+            View tv = navRow.getChildAt(i);
+            if (tv == null || tv.getWidth() == 0) return;
+            int w = tv.getWidth() - UI.dp(this, 6);
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) navInd.getLayoutParams();
+            if (lp.width != w) { lp.width = w; navInd.setLayoutParams(lp); }
+            float x = navRow.getLeft() + tv.getLeft() + UI.dp(this, 3);
+            if (animate && UI.anim) navInd.animate().translationX(x).setDuration(380).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();
+            else navInd.setTranslationX(x);
+        });
+    }
+
     void selectTab(final int i) {
+        boolean first = navInd.getWidth() == 0;
         tab = i;
-        for (int k = 0; k < navBar.getChildCount(); k++) {
-            LinearLayout t = (LinearLayout) navBar.getChildAt(k);
-            for (int j = 0; j < t.getChildCount(); j++) ((TextView) t.getChildAt(j)).setTextColor(k == i ? UI.PRI : UI.sub());
+        for (int k = 0; k < navRow.getChildCount(); k++) {
+            LinearLayout t = (LinearLayout) navRow.getChildAt(k);
+            int c = k == i ? 0xFFFFFFFF : UI.sub();
+            ((UI.NavIcon) t.getChildAt(0)).color = c;
+            t.getChildAt(0).invalidate();
+            ((TextView) t.getChildAt(1)).setTextColor(c);
+            if (UI.anim && k == i) { t.setScaleX(.9f); t.setScaleY(.9f); t.animate().scaleX(1).scaleY(1).setDuration(300).setInterpolator(new android.view.animation.OvershootInterpolator(3f)).start(); }
         }
+        moveInd(i, !first);
         fab.setVisibility(i <= 1 ? View.VISIBLE : View.GONE);
         homeContent.removeAllViews();
-        if (i == 2) { show(guide()); return; }
-        if (i == 3) { show(settings()); return; }
+        if (i == 2) { bottomPad = UI.dp(this, 112); show(guide()); bottomPad = 0; return; }
+        if (i == 3) { bottomPad = UI.dp(this, 112); show(settings()); bottomPad = 0; return; }
         TextView ld = UI.tv(this, "Loading...", 13, UI.sub(), false);
         homeContent.addView(ld, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
-        loadApps(() -> { if (tab != i) return; homeContent.removeAllViews(); show(i == 0 ? dashboard() : appsTab()); });
+        loadApps(() -> {
+            if (tab != i) return;
+            homeContent.removeAllViews();
+            bottomPad = UI.dp(this, 112);
+            View v = i == 0 ? dashboard() : appsTab();
+            bottomPad = 0;
+            show(v);
+        });
     }
 
     void show(View v) {
         homeContent.addView(v, new FrameLayout.LayoutParams(-1, -1));
-        if (UI.anim) { v.setAlpha(0); v.animate().alpha(1).setDuration(220).start(); }
+        if (UI.anim) { v.setAlpha(0); v.setTranslationY(UI.dp(this, 16)); v.animate().alpha(1).translationY(0).setDuration(300).start(); }
     }
 
     void refreshHome() { if (homeContent != null) selectTab(tab); }
@@ -494,7 +561,18 @@ public class MainActivity extends Activity {
     View stat(String name, String val, int color) {
         LinearLayout c = UI.card(this);
         c.addView(label(name));
-        c.addView(UI.tv(this, val, 28, color, true));
+        final TextView t = UI.tv(this, val, 28, color, true);
+        c.addView(t);
+        if (UI.anim) {
+            try {
+                final int target = Integer.parseInt(val);
+                android.animation.ValueAnimator va = android.animation.ValueAnimator.ofInt(0, target);
+                va.setDuration(700);
+                va.setStartDelay(250);
+                va.addUpdateListener(a -> t.setText(String.valueOf(a.getAnimatedValue())));
+                va.start();
+            } catch (Exception e) { /* not a number */ }
+        }
         return c;
     }
 
@@ -592,7 +670,7 @@ public class MainActivity extends Activity {
             JSONObject a = new JSONObject();
             a.put("name", nm).put("desc", ds).put("date", date).put("icon", icon).put("loginKey", Levi.randKey("LEVI"))
                     .put("enabled", false).put("created", System.currentTimeMillis());
-            a.put("cfg", new JSONObject().put("bgType", "gradient").put("grad", 16).put("enter", 8));
+            a.put("cfg", new JSONObject().put("bgType", "gradient").put("grad", 16).put("bgFx", 20).put("enter", 8));
             final JSONObject fa = a;
             req("PUT", "levi_apps/" + ck, a.toString(), (r, e) -> {
                 if (e != null) { UI.toast(this, "Failed: " + shortErr(e)); d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); return; }
@@ -776,13 +854,58 @@ public class MainActivity extends Activity {
     // =============================================================== settings ==================
     View settings() {
         LinearLayout c = UI.col(this);
-        c.addView(UI.tv(this, "Settings", 24, UI.tx(), true), UI.lp(this, -2, -2, 0, 0, 0, 12));
+        c.addView(UI.tv(this, "Settings", 26, UI.tx(), true), UI.lp(this, -2, -2, 0, 0, 0, 12));
+
         LinearLayout a = UI.card(this);
         a.addView(label("Appearance"));
-        a.addView(switchRow("Dark mode", "Easy on the eyes at night", UI.dark, (b, on) -> { sp.edit().putBoolean("dark", on).apply(); UI.dark = on; refreshTheme(); }));
-        a.addView(switchRow("Animations", "Screen transitions and effects", UI.anim, (b, on) -> { sp.edit().putBoolean("anim", on).apply(); UI.anim = on; }));
+        a.addView(switchRow("Dark mode", "Deep green night theme", UI.dark, (b, on) -> { sp.edit().putBoolean("dark", on).apply(); UI.dark = on; refreshTheme(); }));
+        a.addView(switchRow("Animations", "Transitions, nav, effects", UI.anim, (b, on) -> { sp.edit().putBoolean("anim", on).apply(); UI.anim = on; aurora.restart(); }));
+        a.addView(switchRow("Aurora background", "Moving green glass glow", UI.aurora, (b, on) -> { sp.edit().putBoolean("aurora", on).apply(); UI.aurora = on; aurora.restart(); }));
+        a.addView(UI.tv(this, "Accent colour", 15, UI.tx(), true), UI.lp(this, -2, -2, 0, 12, 0, 8));
+        LinearLayout ac = UI.row(this);
+        for (int i2 = 0; i2 < UI.ACCENT_NAMES.length; i2++) {
+            final int k = i2;
+            LinearLayout cell = UI.col(this);
+            cell.setGravity(Gravity.CENTER);
+            View dot = new View(this);
+            GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, UI.ACCENTS[i2]);
+            g.setShape(GradientDrawable.OVAL);
+            if (UI.accent == i2) g.setStroke(UI.dp(this, 3), UI.tx());
+            dot.setBackground(g);
+            cell.addView(dot, new LinearLayout.LayoutParams(UI.dp(this, 38), UI.dp(this, 38)));
+            cell.addView(UI.tv(this, UI.ACCENT_NAMES[i2], 9, UI.sub(), false));
+            cell.setOnClickListener(v -> { sp.edit().putInt("accent", k).apply(); UI.setAccent(k); refreshTheme(); });
+            ac.addView(cell, new LinearLayout.LayoutParams(0, -2, 1f));
+        }
+        a.addView(ac);
+        LinearLayout fr = UI.row(this);
+        fr.addView(UI.tv(this, "UI font", 15, UI.tx(), true), new LinearLayout.LayoutParams(0, -2, 1f));
+        fr.addView(UI.tv(this, UI.UI_FONT_NAMES[UI.fontIdx] + "  \u25BE", 13, UI.PRI, true));
+        fr.setPadding(0, UI.dp(this, 16), 0, UI.dp(this, 6));
+        fr.setOnClickListener(v -> {
+            android.widget.ArrayAdapter<String> ad = new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, UI.UI_FONT_NAMES) {
+                @Override public View getView(int pos, View cv, android.view.ViewGroup par) {
+                    TextView t = (TextView) super.getView(pos, cv, par);
+                    t.setTextSize(20);
+                    Typeface f = UI.UI_FONTS[pos] >= 0 ? Levi.font(MainActivity.this, UI.UI_FONTS[pos]) : null;
+                    t.setTypeface(f != null ? f : Typeface.DEFAULT);
+                    return t;
+                }
+            };
+            new AlertDialog.Builder(this).setTitle("UI font").setAdapter(ad, (d, which) -> { sp.edit().putInt("uifont", which).apply(); UI.fontIdx = which; refreshTheme(); }).show();
+        });
+        a.addView(fr);
+        a.addView(sliderRow("Glass intensity", 0, 100, UI.glass, "%", val -> { sp.edit().putInt("glass", val).apply(); UI.glass = val; refreshTheme(); }));
         c.addView(a, UI.lp(this, -1, -2, 0, 0, 0, 12));
         UI.pop(a, 0);
+
+        LinearLayout vd = UI.card(this);
+        vd.addView(label("Video"));
+        vd.addView(switchRow("Auto-compress large videos", "Re-encodes gallery videos that are too big", UI.compress, (b, on) -> { sp.edit().putBoolean("compress", on).apply(); UI.compress = on; }));
+        vd.addView(sliderRow("Compress above", 2, 6, UI.maxMb, " MB", val -> { sp.edit().putInt("maxmb", val).apply(); UI.maxMb = val; }));
+        c.addView(vd, UI.lp(this, -1, -2, 0, 0, 0, 12));
+        UI.pop(vd, 1);
+
         LinearLayout s = UI.card(this);
         s.addView(label("Security"));
         s.addView(switchRow("Stay signed in", "Skip the admin key on this device", sp.getBoolean("remember", false), (b, on) -> {
@@ -792,7 +915,7 @@ public class MainActivity extends Activity {
         }));
         s.addView(UI.btn(this, "Change admin key", false, v -> changeKey()), UI.lp(this, -1, -2, 0, 10, 0, 0));
         c.addView(s, UI.lp(this, -1, -2, 0, 0, 0, 12));
-        UI.pop(s, 1);
+        UI.pop(s, 2);
         c.addView(copyRow("Connected database", base, true), UI.lp(this, -1, -2, 0, 0, 0, 12));
         LinearLayout d = UI.card(this);
         d.addView(label("Session"));
@@ -801,10 +924,32 @@ public class MainActivity extends Activity {
         dis.setTextColor(UI.RED);
         d.addView(dis);
         c.addView(d, UI.lp(this, -1, -2, 0, 0, 0, 12));
-        TextView about = UI.tv(this, "Levi Admin 1.0  \u2022  TENIx", 12, UI.sub(), false);
+        TextView about = UI.tv(this, "Levi Admin 1.1  \u2022  TENIx", 12, UI.sub(), false);
         about.setGravity(Gravity.CENTER);
         c.addView(about, UI.lp(this, -1, -2, 0, 8, 0, 20));
         return scroll(c);
+    }
+
+    interface IntCb2 { void got(int v); }
+
+    View sliderRow(String title, final int min, int max, int cur, final String unit, final IntCb2 done) {
+        LinearLayout box = UI.col(this);
+        LinearLayout r = UI.row(this);
+        r.addView(UI.tv(this, title, 15, UI.tx(), true), new LinearLayout.LayoutParams(0, -2, 1f));
+        final TextView val = UI.tv(this, cur + unit, 13, UI.PRI, true);
+        r.addView(val);
+        box.addView(r);
+        android.widget.SeekBar sb = new android.widget.SeekBar(this);
+        sb.setMax(max - min);
+        sb.setProgress(cur - min);
+        sb.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar x, int pr, boolean u) { val.setText((min + pr) + unit); }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar x) { }
+            @Override public void onStopTrackingTouch(android.widget.SeekBar x) { done.got(min + x.getProgress()); }
+        });
+        box.addView(sb);
+        box.setPadding(0, UI.dp(this, 10), 0, 0);
+        return box;
     }
 
     View switchRow(String t, String sub, boolean on, android.widget.CompoundButton.OnCheckedChangeListener l) {

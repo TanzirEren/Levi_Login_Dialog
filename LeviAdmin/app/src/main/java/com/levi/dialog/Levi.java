@@ -3,6 +3,7 @@ package com.levi.dialog;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.app.Application;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -27,6 +28,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
@@ -73,24 +75,30 @@ import java.util.Random;
 
 /**
  * Levi - login-key dialog.
- * Host usage:  Levi.show(this);
+ * Host usage (in the app's main Activity.onCreate):  Levi.show(this);
  *
- * MT Manager: open classes.dex -> com/levi/dialog/Levi.smali and replace the two strings
- *   "https://YOUR-PROJECT-default-rtdb.firebaseio.com"   (Firebase RTDB databaseURL)
- *   "LV-XXX-XXX-ST"                                      (App Connect Key from the Levi Admin app)
- * Each of them exists exactly once in the smali (inside dbUrl() / connectKey()).
+ * MT Manager: open classes.dex -> com/levi/dialog/Levi.smali.
+ * The two placeholders are the FIRST fields at the top of the smali file:
+ *   APP_ACCESS_KEY        = "LV-XXX-XXX-ST"                                       (App Connect Key from Levi Admin)
+ *   FIREBASE_DATABASE_URL = "https://YOUR-PROJECT-default-rtdb.firebaseio.com"    (your Firebase RTDB databaseURL)
+ * Replace the text between the quotes, save, sign. Each value exists exactly once.
  */
 public class Levi {
 
-    // ------------------------------------------------------------------ REPLACE ME (smali) ----
-    static String dbUrl() { return "https://YOUR-PROJECT-default-rtdb.firebaseio.com"; }
-    static String connectKey() { return "LV-XXX-XXX-ST"; }
+    // ------------------------------------------------------------ REPLACE ME (top of smali) ----
+    public static String APP_ACCESS_KEY = "LV-XXX-XXX-ST";
+    public static String FIREBASE_DATABASE_URL = "https://YOUR-PROJECT-default-rtdb.firebaseio.com";
     // -----------------------------------------------------------------------------------------
+
+    static String dbUrl() { return FIREBASE_DATABASE_URL; }
+    static String connectKey() { return APP_ACCESS_KEY; }
 
     public static String dbBase = "";   // used by media loader (set by show() / by the admin app)
     public static String dbCk = "";
     static final Handler main = new Handler(Looper.getMainLooper());
-    static boolean showing = false;
+    static Host cur;                 // dialog currently managed
+    static boolean passed = false;   // verified (or dialog disabled) -> never show again this run
+    static boolean hooked = false, silentStarted = false;
 
     // ================================================================ catalogues ================
     public static final String[] FONT_NAMES = {"League Gothic", "Bebas Neue", "Anton", "Oswald", "Pacifico", "Lobster",
@@ -100,19 +108,23 @@ public class Levi {
             "dancing_script", "caveat", "bangers", "righteous", "orbitron", "audiowide", "press_start_2p", "cinzel",
             "abril_fatface", "playfair_display", "russo_one", "monoton", "creepster", "bungee"};
     public static final String[] GRAD_NAMES = {"Sunset", "Ocean", "Peach", "Mint", "Lavender", "Midnight", "Aurora",
-            "Candy", "Ember", "Forest", "Sky", "Rose", "Gold", "Mono", "Cyber", "Coral", "Cotton", "Dusk", "Neon", "Slate"};
+            "Candy", "Ember", "Forest", "Sky", "Rose", "Gold", "Mono", "Cyber", "Coral", "Cotton", "Dusk", "Neon", "Slate",
+            "Levi Violet", "Levi Glow", "Emerald", "Lime", "Teal Dream", "Pearl", "Blush", "Ice", "Berry", "Citrus"};
     public static final int[][] GRADS = {
             {0xFFFF9A8B, 0xFFFF6A88}, {0xFF2193B0, 0xFF6DD5ED}, {0xFFFFECD2, 0xFFFCB69F}, {0xFF84FAB0, 0xFF8FD3F4},
             {0xFFA18CD1, 0xFFFBC2EB}, {0xFF141E30, 0xFF243B55}, {0xFF00C9FF, 0xFF92FE9D}, {0xFFFF9EEA, 0xFF8EC5FC},
             {0xFFF12711, 0xFFF5AF19}, {0xFF134E5E, 0xFF71B280}, {0xFF89F7FE, 0xFF66A6FF}, {0xFFFFC3A0, 0xFFFFAFBD},
             {0xFFF7971E, 0xFFFFD200}, {0xFFBDC3C7, 0xFF2C3E50}, {0xFF7F00FF, 0xFFE100FF}, {0xFFFF5F6D, 0xFFFFC371},
-            {0xFFE0C3FC, 0xFF8EC5FC}, {0xFF2C3E50, 0xFFFD746C}, {0xFF08AEEA, 0xFF2AF598}, {0xFF485563, 0xFF29323C}};
+            {0xFFE0C3FC, 0xFF8EC5FC}, {0xFF2C3E50, 0xFFFD746C}, {0xFF08AEEA, 0xFF2AF598}, {0xFF485563, 0xFF29323C},
+            {0xFF272533, 0xFF8049AC}, {0xFF47345E, 0xFFB57BEE}, {0xFF11998E, 0xFF38EF7D}, {0xFFA8E063, 0xFF56AB2F},
+            {0xFF43CEA2, 0xFF185A9D}, {0xFFF5F7FA, 0xFFB8C6DB}, {0xFFFFDDE1, 0xFFEE9CA7}, {0xFFE0EAFC, 0xFFCFDEF3},
+            {0xFF8E2DE2, 0xFF4A00E0}, {0xFFFDC830, 0xFF37ECBA}};
     public static final String[] ENTER_NAMES = {"None", "Fade", "Scale up", "Slide up", "Slide down", "Slide left",
             "Slide right", "Zoom out", "Bounce", "Flip X", "Flip Y", "Rotate in", "Elastic pop", "Drop", "Swing",
             "Soft focus", "Spin zoom", "Slide + tilt", "Pulse in", "Tada"};
     public static final String[] FX_NAMES = {"None", "Gradient spin", "Pulse glow", "Slow zoom", "Drift X", "Drift Y",
             "Sway", "Shimmer", "Aurora", "Bokeh", "Stripes", "Breathe", "Waves", "Sparkle", "Rain", "Vignette pulse",
-            "Hue cycle", "Spotlight", "Grid scan", "Snow"};
+            "Hue cycle", "Spotlight", "Grid scan", "Snow", "Color flow"};
 
     // ================================================================ helpers ===================
     public static String S(JSONObject j, String k, String d) { return j.has(k) && !j.isNull(k) ? j.optString(k, d) : d; }
@@ -501,12 +513,22 @@ public class Levi {
             int c1, c2;
             if (B(cfg, "gcustom", false)) { c1 = col(cfg, "gc1", "#FF9A8B"); c2 = col(cfg, "gc2", "#FF6A88"); }
             else { int[] g = GRADS[Math.max(0, Math.min(GRADS.length - 1, I(cfg, "grad", 16)))]; c1 = g[0]; c2 = g[1]; }
+            if (fx() == 20) {
+                float k = (float) (0.5 + 0.5 * Math.sin(phase * Math.PI * 2));
+                int a1 = lerp(c1, c2, k), a2 = lerp(c2, c1, k);
+                c1 = a1; c2 = a2;
+            }
             if (fx() == 16) {
                 float[] h = new float[3];
                 Color.colorToHSV(c1, h); h[0] = (h[0] + phase * 360) % 360; c1 = Color.HSVToColor(h);
                 Color.colorToHSV(c2, h); h[0] = (h[0] + phase * 360) % 360; c2 = Color.HSVToColor(h);
             }
             return new int[]{c1, c2};
+        }
+
+        int lerp(int a, int b, float t) {
+            return Color.argb((int) (Color.alpha(a) + (Color.alpha(b) - Color.alpha(a)) * t), (int) (Color.red(a) + (Color.red(b) - Color.red(a)) * t),
+                    (int) (Color.green(a) + (Color.green(b) - Color.green(a)) * t), (int) (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t));
         }
 
         void drawBase(Canvas cv, int w, int h) {
@@ -902,11 +924,39 @@ public class Levi {
     }
 
     // ================================================================ Host (dialog flow) ========
+    /** Call from the main Activity.onCreate. Covers every activity of the app until the key is verified. */
     public static void show(final Activity a) {
-        if (showing) return;
         dbBase = dbUrl().trim().replaceAll("/+$", "");
         dbCk = connectKey().trim();
-        new Host(a).start();
+        if (!hooked) {
+            hooked = true;
+            a.getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+                @Override public void onActivityCreated(Activity x, Bundle b) { }
+                @Override public void onActivityStarted(Activity x) { }
+                @Override public void onActivityResumed(Activity x) { ensure(x); }
+                @Override public void onActivityPaused(Activity x) { }
+                @Override public void onActivityStopped(Activity x) { }
+                @Override public void onActivitySaveInstanceState(Activity x, Bundle b) { }
+                @Override public void onActivityDestroyed(Activity x) {
+                    if (cur != null && cur.a == x) { cur.dispose(); cur = null; }
+                }
+            });
+        }
+        ensure(a);
+    }
+
+    static void ensure(Activity a) {
+        if (passed || a.isFinishing()) return;
+        if (cur != null && cur.a == a && !cur.closed) return;
+        if (cur != null) { cur.dispose(); cur = null; }
+        SharedPreferences sp = a.getSharedPreferences("levi_auth", 0);
+        if (!sp.getString("ok_" + dbCk, "").isEmpty()) {
+            // verified before: let the app run, silently re-check once (key rotated => ask again)
+            if (!silentStarted) { silentStarted = true; passed = true; new Host(a).start(); }
+            return;
+        }
+        cur = new Host(a);
+        cur.start();
     }
 
     static class Host {
@@ -922,26 +972,33 @@ public class Levi {
 
         String url() { return dbBase + "/levi_apps/" + dbCk + ".json"; }
 
+        void dispose() {
+            closed = true;
+            dismissLoading();
+            try { if (dlg != null) dlg.dismiss(); } catch (Exception ex) { /* ignore */ }
+            dlg = null;
+        }
+
         void start() {
             final String saved = sp.getString("ok_" + dbCk, "");
             if (!saved.isEmpty()) {
-                // already verified: silently re-check (key rotated by admin => ask again)
                 async("GET", url(), null, (r, er) -> {
                     if (er != null || !parse(r)) return;
                     if (enabled && !loginKey.isEmpty() && !loginKey.equals(saved)) {
                         sp.edit().remove("ok_" + dbCk).apply();
+                        passed = false;
+                        cur = this;
                         present();
                     }
                 });
                 return;
             }
-            showing = true;
             showLoading();
             async("GET", url(), null, (r, er) -> {
                 dismissLoading();
-                if (a.isFinishing()) { showing = false; return; }
+                if (closed || a.isFinishing()) return;
                 if (er == null) parse(r);
-                if (er == null && found && !enabled) { showing = false; return; }   // dialog switched off by admin
+                if (er == null && found && !enabled) { passed = true; closed = true; return; }   // dialog switched off by admin
                 present();
                 if (er != null) toast("No connection to server");
                 else if (!found) toast("Invalid app connect key / database");
@@ -996,16 +1053,13 @@ public class Levi {
         }
 
         void exitApp() {
-            closed = true; showing = false;
-            try { if (dlg != null) dlg.dismiss(); } catch (Exception ex) { /* ignore */ }
-            dismissLoading();
+            dispose();
             a.finishAffinity();
             main.postDelayed(() -> android.os.Process.killProcess(android.os.Process.myPid()), 200);
         }
 
         void present() {
-            if (a.isFinishing() || closed) { showing = false; return; }
-            showing = true;
+            if (a.isFinishing() || closed) return;
             dlg = base(true);
             dlg.getWindow().setDimAmount(F(cfg, "dim", 60) / 100f);
             FrameLayout root = new FrameLayout(a);
@@ -1037,7 +1091,7 @@ public class Levi {
         }
 
         void closeOk(boolean verified) {
-            closed = true; showing = false;
+            closed = true; passed = true;
             if (verified) sp.edit().putString("ok_" + dbCk, loginKey).apply();
             final Card c = card;
             c.animate().alpha(0f).scaleX(.9f).scaleY(.9f).setDuration(180).withEndAction(() -> {

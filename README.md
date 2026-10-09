@@ -25,8 +25,12 @@ Put your round PNG as `ic_launcher.png` and `ic_launcher_round.png` (512x512) in
 ## Use
 1. Open Levi Admin -> paste databaseURL -> create admin key -> + add app.
 2. App page shows App Connect Key, Login Key, databaseURL, INTERNET line. Turn on **Dialog Show**, tap **Edit** to design.
-3. In the Levi APK (MT Manager) open `classes.dex -> com/levi/dialog/Levi.smali` and replace
-   `https://YOUR-PROJECT-default-rtdb.firebaseio.com` and `LV-XXX-XXX-ST`. Make sure the app has the INTERNET permission.
+3. In the Levi APK (MT Manager) open the single `classes.dex` -> `com/levi/dialog/Levi.smali`. The two placeholders are the
+   first fields at the TOP of the file:
+   `APP_ACCESS_KEY` = `LV-XXX-XXX-ST` and `FIREBASE_DATABASE_URL` = `https://YOUR-PROJECT-default-rtdb.firebaseio.com`.
+   Replace the text inside the quotes, save, sign. Make sure the app has the INTERNET permission.
+4. To put the dialog on another app: add `invoke-static {p0}, Lcom/levi/dialog/Levi;->show(Landroid/app/Activity;)V`
+   at the end of its main Activity `onCreate`. The dialog is modal and re-appears on every screen/rotation until the key is verified.
 
 ## Data layout
 `levi_apps/<connectKey>` = name, desc, date, icon, loginKey, enabled, cfg{...}  |  `levi_media/<connectKey>/{bg,banner}` = data URLs
