@@ -18,7 +18,9 @@ jobs:
       - name: Check single classes.dex
         run: |
           cp Levi/app/build/outputs/apk/debug/app-debug.apk Levi.apk
-          unzip -l Levi.apk | grep -c 'classes.*\.dex'
+          N=$(unzip -l Levi.apk | grep -c 'classes.*\.dex')
+          echo "dex files in Levi.apk: $N"
+          test "$N" -eq 1
       - uses: actions/upload-artifact@v4
         with: { name: Levi, path: Levi/app/build/outputs/apk/debug/app-debug.apk }
       - uses: actions/upload-artifact@v4
