@@ -1,0 +1,25 @@
+name: Build Levi + Levi Admin
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Build Levi (dialog)
+        run: gradle -p Levi assembleDebug --no-daemon
+      - name: Build Levi Admin
+        run: gradle -p LeviAdmin assembleDebug --no-daemon
+      - name: Check single classes.dex
+        run: |
+          cp Levi/app/build/outputs/apk/debug/app-debug.apk Levi.apk
+          unzip -l Levi.apk | grep -c 'classes.*\.dex'
+      - uses: actions/upload-artifact@v4
+        with: { name: Levi, path: Levi/app/build/outputs/apk/debug/app-debug.apk }
+      - uses: actions/upload-artifact@v4
+        with: { name: Levi-Admin, path: LeviAdmin/app/build/outputs/apk/debug/app-debug.apk }
