@@ -45,8 +45,8 @@ flowchart LR
 
 | File | What it is |
 |---|---|
-| `Levi-vX.Y.Z.apk` | The dialog app (single `classes.dex`) – open it in MT Manager and edit `Levi.smali` |
-| `Levi-Admin-vX.Y.Z.apk` | The admin panel – install on your phone |
+| `Levi-v1.1.0.apk` | The dialog app (single `classes.dex`) – open it in MT Manager and edit `Levi.smali` |
+| `Levi-Admin-v1.1.0.apk` | The admin panel – install on your phone |
 
 Both APKs are built by GitHub Actions and signed with the debug key (fine for modding/testing).
 
