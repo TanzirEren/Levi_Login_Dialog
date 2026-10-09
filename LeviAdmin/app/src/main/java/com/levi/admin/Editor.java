@@ -51,12 +51,12 @@ public class Editor {
     };
 
     static final String[][] THEMES = {
-            {"Light glass", "{\"grad\":16,\"cField\":\"#5214283C\",\"cFieldB\":\"#EBFFFFFF\",\"cBtn\":\"#61FFFFFF\",\"cTitle\":\"#000000\",\"cBtnT\":\"#000000\",\"cInput\":\"#FFFFFF\",\"gcustom\":false}"},
-            {"Midnight", "{\"grad\":5,\"cField\":\"#66000000\",\"cFieldB\":\"#55FFFFFF\",\"cBtn\":\"#33FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cBtnT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\",\"gcustom\":false}"},
-            {"Sunset", "{\"grad\":0,\"cField\":\"#44FFFFFF\",\"cFieldB\":\"#FFFFFFFF\",\"cBtn\":\"#55FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cBtnT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\",\"gcustom\":false}"},
-            {"Mint", "{\"grad\":3,\"cField\":\"#3300594A\",\"cFieldB\":\"#EEFFFFFF\",\"cBtn\":\"#66FFFFFF\",\"cTitle\":\"#0B3D2E\",\"cBtnT\":\"#0B3D2E\",\"cInput\":\"#06352A\",\"gcustom\":false}"},
-            {"Neon", "{\"grad\":14,\"bgFx\":17,\"cField\":\"#55000000\",\"cFieldB\":\"#FF2AF598\",\"cBtn\":\"#44000000\",\"cBtnB\":\"#FF2AF598\",\"btnBW\":0.5,\"cTitle\":\"#FFFFFF\",\"cBtnT\":\"#2AF598\",\"cInput\":\"#FFFFFF\",\"gcustom\":false}"},
-            {"Mono", "{\"grad\":13,\"cField\":\"#55000000\",\"cFieldB\":\"#CCFFFFFF\",\"cBtn\":\"#44FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cBtnT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\",\"gcustom\":false}"}};
+            {"Light glass", "{\"grad\":16,\"gcustom\":false,\"cField\":\"#5214283C\",\"cFieldB\":\"#EBFFFFFF\",\"cGetBg\":\"#61FFFFFF\",\"cVerBg\":\"#61FFFFFF\",\"cVerBg2\":\"#61FFFFFF\",\"cTitle\":\"#000000\",\"cGetT\":\"#000000\",\"cVerT\":\"#000000\",\"cInput\":\"#FFFFFF\"}"},
+            {"Midnight", "{\"grad\":5,\"gcustom\":false,\"cField\":\"#66000000\",\"cFieldB\":\"#55FFFFFF\",\"cGetBg\":\"#33FFFFFF\",\"cVerBg\":\"#33FFFFFF\",\"cVerBg2\":\"#33FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cGetT\":\"#FFFFFF\",\"cVerT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\"}"},
+            {"Sunset", "{\"grad\":0,\"gcustom\":false,\"cField\":\"#44FFFFFF\",\"cFieldB\":\"#FFFFFFFF\",\"cGetBg\":\"#55FFFFFF\",\"cVerBg\":\"#55FFFFFF\",\"cVerBg2\":\"#55FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cGetT\":\"#FFFFFF\",\"cVerT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\"}"},
+            {"Mint", "{\"grad\":3,\"gcustom\":false,\"cField\":\"#3300594A\",\"cFieldB\":\"#EEFFFFFF\",\"cGetBg\":\"#66FFFFFF\",\"cVerBg\":\"#66FFFFFF\",\"cVerBg2\":\"#66FFFFFF\",\"cTitle\":\"#0B3D2E\",\"cGetT\":\"#0B3D2E\",\"cVerT\":\"#0B3D2E\",\"cInput\":\"#06352A\"}"},
+            {"Neon green", "{\"grad\":14,\"gcustom\":false,\"cAcc\":\"#2AF598\",\"cField\":\"#55000000\",\"cFieldB\":\"#FF2AF598\",\"cGetBg\":\"#44000000\",\"cVerBg\":\"#FF2AF598\",\"cVerBg2\":\"#FF08AEEA\",\"cTitle\":\"#FFFFFF\",\"cGetT\":\"#2AF598\",\"cVerT\":\"#FF04130C\",\"cInput\":\"#FFFFFF\"}"},
+            {"Mono", "{\"grad\":13,\"gcustom\":false,\"cField\":\"#55000000\",\"cFieldB\":\"#CCFFFFFF\",\"cGetBg\":\"#44FFFFFF\",\"cVerBg\":\"#44FFFFFF\",\"cVerBg2\":\"#44FFFFFF\",\"cTitle\":\"#FFFFFF\",\"cGetT\":\"#FFFFFF\",\"cVerT\":\"#FFFFFF\",\"cInput\":\"#FFFFFF\"}"}};
 
     public Editor(MainActivity a, String ck) {
         A = a;
@@ -64,6 +64,15 @@ public class Editor {
         app = a.apps.optJSONObject(ck);
         JSONObject c = app.optJSONObject("cfg");
         try { cfg = c == null ? new JSONObject() : new JSONObject(c.toString()); } catch (Exception e) { cfg = new JSONObject(); }
+        if (!cfg.has("design") && cfg.has("cBtn")) {   // v1 config -> map old button colours
+            try {
+                cfg.put("cGetBg", cfg.get("cBtn")); cfg.put("cVerBg", cfg.get("cBtn")); cfg.put("cVerBg2", cfg.get("cBtn"));
+                if (cfg.has("cBtnT")) { cfg.put("cGetT", cfg.get("cBtnT")); cfg.put("cVerT", cfg.get("cBtnT")); }
+            } catch (Exception e) { /* ignore */ }
+        }
+        JSONObject dd = Levi.designDefaults(Levi.designOf(cfg));
+        Iterator<String> it = dd.keys();
+        while (it.hasNext()) { String k = it.next(); if (!cfg.has(k)) { try { cfg.put(k, dd.get(k)); } catch (Exception e) { /* ignore */ } } }
         Levi.dbBase = a.base;
         Levi.dbCk = ck;
     }
@@ -117,10 +126,65 @@ public class Editor {
 
     void fit() {
         DisplayMetrics dm = A.getResources().getDisplayMetrics();
-        float real = Math.min(dm.widthPixels * Levi.F(cfg, "cardW", 76) / 100f, UI.dp(A, 420));
-        float natH = real * Levi.F(cfg, "cardH", 100) / 100f;
+        int dz = Levi.designOf(cfg);
+        float pct = Levi.F(cfg, "cardW", 76) / 100f;
+        float real = dz == 3 ? dm.widthPixels * pct : Math.min(dm.widthPixels * pct, UI.dp(A, 420));
+        float natH = real * (Levi.DESIGN_H0[dz] + Levi.F(cfg, "cardH", 100) - 100) / 100f;
         float maxH = Math.min(dm.heightPixels * 0.40f, UI.dp(A, 330)) * 0.86f;
-        card.scale = Math.min(1f, maxH / natH);
+        float maxW = dm.widthPixels - UI.dp(A, 28);
+        card.scale = Math.min(1f, Math.min(maxH / natH, maxW / real));
+    }
+
+    void applyDesign(int i) {
+        JSONObject dd = Levi.designDefaults(i);
+        Iterator<String> it = dd.keys();
+        while (it.hasNext()) {
+            String k = it.next();
+            if (k.equals("bgType")) continue;
+            try { cfg.put(k, dd.get(k)); } catch (Exception e) { /* ignore */ }
+        }
+        dirty = true;
+        build();
+        fit();
+        card.apply(cfg);
+        card.post(() -> card.playEnter());
+    }
+
+    void designPicker(LinearLayout p) {
+        p.addView(UI.tv(A, "Pick a layout. Each one comes with its own colours, fonts, shapes and animation - then tweak everything below.", 12, UI.sub(), false), UI.lp(A, -1, -2, 0, 4, 0, 10));
+        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(A);
+        hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = UI.row(A);
+        row.setGravity(Gravity.TOP);
+        DisplayMetrics dm = A.getResources().getDisplayMetrics();
+        int cur = Levi.designOf(cfg);
+        for (int i = 0; i < Levi.DESIGN_NAMES.length; i++) {
+            final int idx = i;
+            JSONObject dd = Levi.designDefaults(i);
+            float real = i == 3 ? dm.widthPixels * Levi.F(dd, "cardW", 100) / 100f : Math.min(dm.widthPixels * Levi.F(dd, "cardW", 76) / 100f, UI.dp(A, 420));
+            Levi.Card mini = new Levi.Card(A);
+            mini.scale = UI.dp(A, 132) / real;
+            JSONObject mc = new JSONObject();
+            try { mc.put("design", i); mc.put("animOn", false); mc.put("desc", "Short description"); } catch (Exception e) { /* ignore */ }
+            mini.apply(mc);
+            FrameLayout box = new FrameLayout(A);
+            box.addView(mini, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+            View shield = new View(A);
+            box.addView(shield, new FrameLayout.LayoutParams(-1, -1));
+            shield.setOnClickListener(v -> applyDesign(idx));
+            LinearLayout cell = UI.col(A);
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+            cell.setPadding(UI.dp(A, 8), UI.dp(A, 8), UI.dp(A, 8), UI.dp(A, 8));
+            cell.setBackground(i == cur ? UI.rrs(A, UI.priC(), UI.PRI, 18) : UI.rr(A, UI.surf2(), 18));
+            cell.addView(box, new LinearLayout.LayoutParams(UI.dp(A, 140), UI.dp(A, 150)));
+            cell.addView(UI.tv(A, Levi.DESIGN_NAMES[i], 12, i == cur ? UI.PRI : UI.tx(), true), UI.lp(A, -2, -2, 0, 6, 0, 0));
+            TextView inf = UI.tv(A, Levi.DESIGN_INFO[i], 9.5f, UI.sub(), false);
+            inf.setGravity(Gravity.CENTER);
+            cell.addView(inf, new LinearLayout.LayoutParams(UI.dp(A, 140), -2));
+            row.addView(cell, UI.lp(A, -2, -2, 0, 0, 10, 0));
+        }
+        hs.addView(row);
+        p.addView(hs);
     }
 
     void put(String k, Object v) {
@@ -133,10 +197,13 @@ public class Editor {
     // ================================================================ controls =================
     void build() {
         controls.removeAllViews();
-        LinearLayout s = sec("Quick themes", true);
-        LinearLayout row = UI.row(A);
+        LinearLayout s = sec("Dialog design", true);
+        designPicker(s);
+
+        s = sec("Quick colour themes", false);
         android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(A);
         hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = UI.row(A);
         for (final String[] t : THEMES) {
             TextView c = UI.btn(A, t[0], false, v -> {
                 try {
@@ -152,7 +219,7 @@ public class Editor {
         hs.addView(row);
         s.addView(hs);
 
-        s = sec("Background", true);
+        s = sec("Background", false);
         media(s, "bgType", "bgSrc", new String[]{"gradient", "image", "video"}, 1080, "Background");
         s.addView(UI.tv(A, "Gradient preset", 13, UI.tx(), true), UI.lp(A, -2, -2, 0, 10, 0, 6));
         gradGrid(s);
@@ -179,42 +246,60 @@ public class Editor {
         cho(s, "Background animation", "bgFx", Levi.FX_NAMES, 0, false, 0);
         sld(s, "Animation speed", "bgSpd", 1, 10, 1, 5, "");
 
-        s = sec("Banner", false);
+        s = sec("Banner / logo", false);
         media(s, "bnType", "bnSrc", new String[]{"image", "video"}, 1100, "Banner");
-        sld(s, "Banner corner radius", "bnR", 0, 20, 0.2f, 5.8f, "");
+        sld(s, "Banner corner radius (50 = circle)", "bnR", 0, 50, 0.5f, 5.8f, "");
 
         s = sec("Text", false);
         txt(s, "Title", "title", "To access this you need access key", false);
         sw(s, "Title in CAPITALS", "caps", true);
-        txt(s, "Short description (shown on banner)", "desc", "", true);
+        txt(s, "Tag line (small label)", "tag", "", false);
+        sw(s, "Tag as filled chip", "tagChip", false);
+        txt(s, "Short description", "desc", "", true);
+        sw(s, "Description on a dark chip", "descChip", false);
         txt(s, "Input hint", "hint", "enter your key here. . . . .", false);
         txt(s, "Get Key button text", "getTxt", "Get Key", false);
         txt(s, "Verify button text", "verTxt", "Verify", false);
         txt(s, "Get Key button URL", "getUrl", "", false);
 
         s = sec("Fonts (per category)", false);
-        cho(s, "Title font", "fTitle", fontList(), 0, true, 1);
-        cho(s, "Description font", "fDesc", fontList(), -1, true, 1);
-        cho(s, "Input font", "fInput", fontList(), -1, true, 1);
-        cho(s, "Buttons font", "fBtn", fontList(), -1, true, 1);
+        cho(s, "Title font", "fTitle", fontList(), 0, true, 2);
+        cho(s, "Tag font", "fTag", fontList(), -1, true, 2);
+        cho(s, "Description font", "fDesc", fontList(), -1, true, 2);
+        cho(s, "Input font", "fInput", fontList(), -1, true, 2);
+        cho(s, "Buttons font", "fBtn", fontList(), -1, true, 2);
 
         s = sec("Colours (per category)", false);
         clr(s, "Title text", "cTitle", "#000000");
+        clr(s, "Tag text", "cTag", "#12B76A");
         clr(s, "Description text", "cDesc", "#FFFFFF");
+        clr(s, "Accent / decorations", "cAcc", "#22E4FF");
         clr(s, "Input field fill", "cField", "#5214283C");
         clr(s, "Input field border", "cFieldB", "#EBFFFFFF");
         clr(s, "Input text", "cInput", "#FFFFFFFF");
-        clr(s, "Button fill", "cBtn", "#61FFFFFF");
-        clr(s, "Button border", "cBtnB", "#FFFFFFFF");
-        clr(s, "Button text", "cBtnT", "#FF000000");
+        clr(s, "Get Key button fill", "cGetBg", "#61FFFFFF");
+        clr(s, "Get Key button text", "cGetT", "#FF000000");
+        clr(s, "Get Key button border", "cGetB", "#FFFFFFFF");
+        clr(s, "Verify button fill", "cVerBg", "#61FFFFFF");
+        clr(s, "Verify gradient end", "cVerBg2", "#61FFFFFF");
+        clr(s, "Verify button text", "cVerT", "#FF000000");
+        clr(s, "Verify button border", "cVerB", "#FFFFFFFF");
         clr(s, "Dialog border", "cCardB", "#FFFFFFFF");
 
+        s = sec("Layout & style", false);
+        cho(s, "Text alignment", "tAlign", new String[]{"Center", "Left"}, 0, false, 0);
+        cho(s, "Input style", "fieldStyle", new String[]{"Filled", "Underline", "Dashed", "Terminal", "Neon outline"}, 0, false, 0);
+        cho(s, "Get Key button style", "btnStyle", new String[]{"Filled", "Flat text", "Outlined", "Bracket", "Link", "Gradient glow"}, 0, false, 0);
+        cho(s, "Verify button style", "btnStyleV", new String[]{"Filled", "Flat text", "Outlined", "Bracket", "Link", "Gradient glow"}, 0, false, 0);
+        sw(s, "Design decorations (frames, scanlines, orbs...)", "deco", true);
+
         s = sec("Size & shape", false);
-        sld(s, "Dialog width (% of screen)", "cardW", 40, 95, 1, 76, "%");
-        sld(s, "Dialog height (100 = square)", "cardH", 70, 140, 1, 100, "");
+        sld(s, "Dialog width (% of screen)", "cardW", 40, 100, 1, 76, "%");
+        sld(s, "Dialog height (100 = design default)", "cardH", 70, 140, 1, 100, "");
         sld(s, "Dialog corner radius (50 = round)", "radius", 0, 50, 0.5f, 10.4f, "");
         sld(s, "Dialog border width", "cardBW", 0, 3, 0.25f, 0, "");
         sld(s, "Title size", "sTitle", 50, 150, 1, 100, "%");
+        sld(s, "Tag size", "sTag", 60, 160, 1, 100, "%");
         sld(s, "Description size", "sDesc", 60, 160, 1, 100, "%");
         sld(s, "Input text size", "sInput", 60, 150, 1, 100, "%");
         sld(s, "Input roundness", "fieldR", 0, 100, 1, 100, "%");
@@ -234,9 +319,10 @@ public class Editor {
     }
 
     String[] fontList() {
-        String[] r = new String[Levi.FONT_NAMES.length + 1];
-        r[0] = "System sans";
-        System.arraycopy(Levi.FONT_NAMES, 0, r, 1, Levi.FONT_NAMES.length);
+        String[] r = new String[Levi.FONT_NAMES.length + 2];
+        r[0] = "Monospace";
+        r[1] = "System sans";
+        System.arraycopy(Levi.FONT_NAMES, 0, r, 2, Levi.FONT_NAMES.length);
         return r;
     }
 
@@ -342,7 +428,8 @@ public class Editor {
                 @Override public View getView(int pos, View cv, ViewGroup par) {
                     TextView t = (TextView) super.getView(pos, cv, par);
                     t.setTextSize(fonts ? 20 : 16);
-                    if (fonts && pos > 0) t.setTypeface(Levi.font(A, pos - 1));
+                    if (fonts && pos >= off) t.setTypeface(Levi.font(A, pos - off));
+                    else if (fonts && pos == 0) t.setTypeface(Typeface.MONOSPACE);
                     else t.setTypeface(Typeface.DEFAULT);
                     return t;
                 }

@@ -670,7 +670,7 @@ public class MainActivity extends Activity {
             JSONObject a = new JSONObject();
             a.put("name", nm).put("desc", ds).put("date", date).put("icon", icon).put("loginKey", Levi.randKey("LEVI"))
                     .put("enabled", false).put("created", System.currentTimeMillis());
-            a.put("cfg", new JSONObject().put("bgType", "gradient").put("grad", 16).put("bgFx", 20).put("enter", 8));
+            a.put("cfg", new JSONObject().put("design", 7).put("bgType", "gradient"));
             final JSONObject fa = a;
             req("PUT", "levi_apps/" + ck, a.toString(), (r, e) -> {
                 if (e != null) { UI.toast(this, "Failed: " + shortErr(e)); d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true); return; }
@@ -824,7 +824,7 @@ public class MainActivity extends Activity {
                 {"2  Connect + admin key", "Open Levi Admin, paste the databaseURL, tap Connect. First time you create an admin key (use the eye icon to see it). Next time you open the app, enter that key to get in.", null},
                 {"3  Add an app", "Tap + and give a name, short detail and an icon (gallery or URL). The date is automatic. Every app gets its own App Connect Key (LV-XXX-XXX-ST) and Login Key (LEVI-XXX-XXX-ST).", null},
                 {"4  Put the dialog in your APK", "Add Levi.java (package com.levi.dialog) + assets/fonts to the target app and call Levi.show(this) in the main activity. Or use the Levi APK as a donor. Make sure the app has the INTERNET permission line shown on the app page.\n\nWith MT Manager: open classes.dex \u2192 com/levi/dialog/Levi.smali \u2192 replace the string \"https://YOUR-PROJECT-default-rtdb.firebaseio.com\" with your databaseURL and \"LV-XXX-XXX-ST\" with the App Connect Key. Save + sign.", null},
-                {"5  Enable + design", "Open the app page \u2192 turn on Dialog Show. Tap Edit to design the dialog: live preview on top, media, colours, fonts, shape and 20 entrance animations. Save, and the dialog updates itself within a few seconds (it re-checks every 4 s while visible).", null},
+                {"5  Enable + design", "Open the app page \u2192 turn on Dialog Show. Tap Edit: pick one of 8 premium dialog designs (Classic Glass, Neon Cyber, Hero Banner, Bottom Sheet, iOS Frost, Ticket Pass, Terminal, Aurora Orb), then tweak media, colours, fonts, shape and 20 entrance animations with the live preview on top. Save, and the dialog updates itself within a few seconds (it re-checks every 4 s while visible).", null},
                 {"6  How verification works", "Until the user types the correct Login Key the dialog stays and Back closes the app. After success it is remembered on the device. Regenerate the Login Key to force everyone to verify again. Dialog Show off = no dialog.", null},
                 {"7  Troubleshooting", "\u2022 Permission denied \u2192 check the rules.\n\u2022 Dialog never shows \u2192 Dialog Show is off or the connect key in smali is wrong.\n\u2022 Video too big \u2192 use a URL or keep it under 6 MB.\n\u2022 Fonts missing \u2192 assets/fonts must contain the .ttf files.", null}};
         for (int i = 0; i < g.length; i++) {
@@ -924,7 +924,7 @@ public class MainActivity extends Activity {
         dis.setTextColor(UI.RED);
         d.addView(dis);
         c.addView(d, UI.lp(this, -1, -2, 0, 0, 0, 12));
-        TextView about = UI.tv(this, "Levi Admin 1.1  \u2022  TENIx", 12, UI.sub(), false);
+        TextView about = UI.tv(this, "Levi Admin 2.0  \u2022  TENIx", 12, UI.sub(), false);
         about.setGravity(Gravity.CENTER);
         c.addView(about, UI.lp(this, -1, -2, 0, 8, 0, 20));
         return scroll(c);

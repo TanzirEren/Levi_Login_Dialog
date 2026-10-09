@@ -2,7 +2,7 @@
 
 <img src="assets/banner.svg" alt="Levi banner" width="100%"/>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=900&color=12B76A&center=true&vCenter=true&width=700&lines=Login-key+dialog+for+Android+mods;Design+it+live+from+your+phone;Firebase+RTDB+%C2%B7+Pure+native+Java;Glass+admin+panel+%C2%B7+20+fonts+%C2%B7+20+animations)](https://github.com)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=900&color=12B76A&center=true&vCenter=true&width=700&lines=Login-key+dialog+for+Android+mods;8+premium+dialog+designs;Design+it+live+from+your+phone;Firebase+RTDB+%C2%B7+Pure+native+Java;Glass+admin+panel+%C2%B7+20+fonts+%C2%B7+20+animations)](https://github.com)
 
 ![Android](https://img.shields.io/badge/Android-5.0%2B-12b76a?style=for-the-badge&logo=android&logoColor=white)
 ![Java](https://img.shields.io/badge/Pure-Java-0b1f17?style=for-the-badge&logo=openjdk&logoColor=5eead4)
@@ -26,7 +26,7 @@ Two small, pure-native Java apps that work together:
 | **Package** | `com.levi.dialog` | `com.levi.admin` |
 | **Files** | `MainActivity.java` + `Levi.java` | `MainActivity`, `Editor`, `UI`, `Compressor` + a copy of `Levi.java` for the live preview |
 | **Talks to** | Firebase Realtime Database (REST, no SDK) | Firebase Realtime Database (REST, no SDK) |
-| **Extra** | Exactly **one** `classes.dex` | Glass UI, aurora glow, floating nav |
+| **Extra** | Exactly **one** `classes.dex`, 8 built-in designs | Glass UI, aurora glow, floating nav |
 
 ```mermaid
 flowchart LR
@@ -39,14 +39,35 @@ flowchart LR
 
 ---
 
+## 🖼 Dialog designs (new in v2)
+
+Pick a layout in **Edit → Dialog design** (every card shows a live mini preview). Each design has its own layout, colours, fonts, shapes, ornaments and entrance animation, and **every setting stays editable**.
+
+| # | Design | Look | Inspired by |
+|---|---|---|---|
+| 0 | **Classic Glass** | Soft glass card, banner, pill input, two pill buttons | the original Levi dialog |
+| 1 | **Neon Cyber** | Dark violet, pulsing neon frame, corner brackets, scanlines, mono type | cyberpunk / gamer mod menus |
+| 2 | **Hero Banner** | Full-bleed photo on top, title over a dark fade, amber gradient CTA, text-link *Get Key* | premium app-store cards |
+| 3 | **Bottom Sheet** | Slides up from the bottom, drag handle, underline input, stacked buttons | modern mobile sheets |
+| 4 | **iOS Frost** | Frosted alert, round logo/lock, hairline-split action buttons | iOS alerts |
+| 5 | **Ticket Pass** | Boarding-pass with real punched notches, dashed tear line, barcode, serif title | membership / licence passes |
+| 6 | **Terminal** | Window bar with traffic-light dots, `$` prompt, `[ bracket ]` buttons, mono green on black | hacker / root-tool style |
+| 7 | **Aurora Orb** | Glowing orb with breathing rings, purple→cyan glass, gradient glow CTA | glassmorphism / premium SaaS login |
+
+Style controls available on top of the design (all designs): text alignment · tag line (+ chip) · description (+ chip) · input style *(Filled / Underline / Dashed / Terminal / Neon outline)* · button styles *(Filled / Flat / Outlined / Bracket / Link / Gradient glow)* separately for **Get Key** and **Verify** · accent colour · decorations on/off · monospace font option.
+
+> Old (v1) configs keep working: they open as *Classic Glass* with their own colours.
+
+---
+
 ## ⬇ Download
 
 > Grab the APKs from the **[Releases](../../releases/latest)** page → **Assets**.
 
 | File | What it is |
 |---|---|
-| `Levi-v1.1.0.apk` | The dialog app (single `classes.dex`) – open it in MT Manager and edit `Levi.smali` |
-| `Levi-Admin-v1.1.0.apk` | The admin panel – install on your phone |
+| `Levi-v2.0.0.apk` | The dialog app (single `classes.dex`) – open it in MT Manager and edit `Levi.smali` |
+| `Levi-Admin-v2.0.0.apk` | The admin panel – install on your phone |
 
 Both APKs are built by GitHub Actions and signed with the debug key (fine for modding/testing).
 
@@ -227,11 +248,11 @@ RELEASE_NOTES.md           text for the GitHub release
 ### 📦 Publish a release (APKs as downloadable assets)
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
-The workflow builds both apps and creates a **GitHub Release** with `Levi-v1.1.0.apk` and `Levi-Admin-v1.1.0.apk` attached, using `RELEASE_NOTES.md` as the description. You can also create the release by hand and paste the notes.
+The workflow builds both apps and creates a **GitHub Release** with `Levi-v2.0.0.apk` and `Levi-Admin-v2.0.0.apk` attached, using `RELEASE_NOTES.md` as the description. You can also create the release by hand and paste the notes.
 
 ### 🖼 Change the icon
 

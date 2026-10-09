@@ -13,6 +13,11 @@ import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Outline;
@@ -170,6 +175,46 @@ public class Levi {
         return t != null ? t : Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL);
     }
 
+    // ================================================================ dialog designs (v2) =======
+    public static final String[] DESIGN_NAMES = {"Classic Glass", "Neon Cyber", "Hero Banner", "Bottom Sheet", "iOS Frost", "Ticket Pass", "Terminal", "Aurora Orb"};
+    public static final String[] DESIGN_INFO = {"Soft glass card, pill input", "Cyber neon, scanlines, glow frame", "Photo hero with amber CTA",
+            "Slide-up sheet, underline input", "Centered alert, split buttons", "Boarding-pass ticket, barcode", "Hacker terminal window", "Glowing orb, gradient CTA"};
+    public static final float[] DESIGN_H0 = {100, 104, 118, 90, 82, 108, 98, 110};
+    static final float[] TSZ = {9.2f, 7.2f, 8.6f, 7.4f, 6.4f, 7.6f, 5.8f, 8.4f};
+    static final float[] INSZ = {3.6f, 3.4f, 3.6f, 3.8f, 3.6f, 3.4f, 3.4f, 3.7f};
+    static final float[] BSZ = {4.6f, 4.0f, 4.4f, 4.4f, 4.6f, 4.0f, 3.8f, 4.6f};
+    static final float[] DSZ = {3.3f, 3.0f, 3.4f, 3.4f, 3.3f, 3.1f, 3.0f, 3.4f};
+    public static final String[] DESIGN_DEFAULTS = {
+            "{\"design\":0,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":false,\"gc1\":\"#FF9A8B\",\"gc2\":\"#FF6A88\",\"gangle\":135,\"bgFx\":20,\"noise\":0,\"blur\":0,\"radius\":10.4,\"cardW\":76,\"cardH\":100,\"cardBW\":0,\"tAlign\":0,\"fieldStyle\":0,\"btnStyle\":0,\"btnStyleV\":0,\"fieldR\":100,\"fieldBW\":0.75,\"btnR\":100,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#000000\",\"cDesc\":\"#FFFFFF\",\"cAcc\":\"#FFFFFF\",\"cTag\":\"#12B76A\",\"cField\":\"#5214283C\",\"cFieldB\":\"#EBFFFFFF\",\"cInput\":\"#FFFFFF\",\"cGetBg\":\"#61FFFFFF\",\"cGetT\":\"#000000\",\"cGetB\":\"#FFFFFFFF\",\"cVerBg\":\"#61FFFFFF\",\"cVerBg2\":\"#61FFFFFF\",\"cVerT\":\"#000000\",\"cVerB\":\"#FFFFFFFF\",\"tag\":\"\",\"tagChip\":false,\"bnR\":5.8,\"descChip\":true,\"fTitle\":0,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":8,\"showExit\":false,\"caps\":true}",
+            "{\"design\":1,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#07031A\",\"gc2\":\"#1B0B3B\",\"gangle\":160,\"bgFx\":18,\"noise\":6,\"blur\":0,\"radius\":4,\"cardW\":88,\"cardH\":100,\"cardBW\":0,\"tAlign\":1,\"fieldStyle\":4,\"btnStyle\":2,\"btnStyleV\":0,\"fieldR\":25,\"fieldBW\":0.5,\"btnR\":22,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#E6FDFF\",\"cDesc\":\"#CFFAFE\",\"cAcc\":\"#22E4FF\",\"cTag\":\"#22E4FF\",\"cField\":\"#33000000\",\"cFieldB\":\"#FF22E4FF\",\"cInput\":\"#E6FDFF\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#22E4FF\",\"cGetB\":\"#FF22E4FF\",\"cVerBg\":\"#FF22E4FF\",\"cVerBg2\":\"#FFB026FF\",\"cVerT\":\"#FF05030F\",\"cVerB\":\"#00000000\",\"tag\":\"// ACCESS REQUIRED\",\"tagChip\":false,\"bnR\":2,\"descChip\":true,\"fTitle\":10,\"fTag\":-2,\"fBtn\":10,\"fInput\":-2,\"fDesc\":-2,\"deco\":true,\"enter\":10,\"showExit\":false,\"caps\":true}",
+            "{\"design\":2,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#0F172A\",\"gc2\":\"#1E293B\",\"gangle\":180,\"bgFx\":0,\"noise\":0,\"blur\":0,\"radius\":8,\"cardW\":82,\"cardH\":100,\"cardBW\":0,\"tAlign\":1,\"fieldStyle\":0,\"btnStyle\":4,\"btnStyleV\":0,\"fieldR\":40,\"fieldBW\":0.5,\"btnR\":45,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#FFFFFF\",\"cDesc\":\"#CBD5E1\",\"cAcc\":\"#F59E0B\",\"cTag\":\"#0F172A\",\"cField\":\"#1FFFFFFF\",\"cFieldB\":\"#33FFFFFF\",\"cInput\":\"#FFFFFF\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#FBBF24\",\"cGetB\":\"#00000000\",\"cVerBg\":\"#FFF59E0B\",\"cVerBg2\":\"#FFEF4444\",\"cVerT\":\"#FFFFFFFF\",\"cVerB\":\"#00000000\",\"tag\":\"PREMIUM\",\"tagChip\":true,\"bnR\":0,\"descChip\":false,\"fTitle\":15,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":2,\"showExit\":false,\"caps\":true}",
+            "{\"design\":3,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#FFFFFF\",\"gc2\":\"#F1F5F9\",\"gangle\":180,\"bgFx\":0,\"noise\":0,\"blur\":0,\"radius\":8,\"cardW\":100,\"cardH\":100,\"cardBW\":0,\"tAlign\":1,\"fieldStyle\":1,\"btnStyle\":2,\"btnStyleV\":0,\"fieldR\":30,\"fieldBW\":0.45,\"btnR\":40,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#0F172A\",\"cDesc\":\"#64748B\",\"cAcc\":\"#CBD5E1\",\"cTag\":\"#12B76A\",\"cField\":\"#00000000\",\"cFieldB\":\"#FF0F172A\",\"cInput\":\"#0F172A\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#0F172A\",\"cGetB\":\"#FFCBD5E1\",\"cVerBg\":\"#FF0F172A\",\"cVerBg2\":\"#FF334155\",\"cVerT\":\"#FFFFFFFF\",\"cVerB\":\"#00000000\",\"tag\":\"SECURE\",\"tagChip\":false,\"bnR\":50,\"descChip\":false,\"fTitle\":3,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":3,\"showExit\":false,\"caps\":true}",
+            "{\"design\":4,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#F2F8FAFF\",\"gc2\":\"#EDEFF3FA\",\"gangle\":180,\"bgFx\":0,\"noise\":0,\"blur\":0,\"radius\":7,\"cardW\":70,\"cardH\":100,\"cardBW\":0,\"tAlign\":0,\"fieldStyle\":0,\"btnStyle\":1,\"btnStyleV\":1,\"fieldR\":28,\"fieldBW\":0,\"btnR\":0,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#111827\",\"cDesc\":\"#6B7280\",\"cAcc\":\"#C7CBD6\",\"cTag\":\"#6B7280\",\"cField\":\"#12000000\",\"cFieldB\":\"#00000000\",\"cInput\":\"#111827\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#007AFF\",\"cGetB\":\"#00000000\",\"cVerBg\":\"#00000000\",\"cVerBg2\":\"#00000000\",\"cVerT\":\"#007AFF\",\"cVerB\":\"#00000000\",\"tag\":\"\",\"tagChip\":false,\"bnR\":50,\"descChip\":false,\"fTitle\":-1,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":18,\"showExit\":false,\"caps\":true}",
+            "{\"design\":5,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#FFFBF0\",\"gc2\":\"#FFEFD0\",\"gangle\":160,\"bgFx\":0,\"noise\":0,\"blur\":0,\"radius\":5,\"cardW\":80,\"cardH\":100,\"cardBW\":0,\"tAlign\":1,\"fieldStyle\":2,\"btnStyle\":2,\"btnStyleV\":0,\"fieldR\":10,\"fieldBW\":0.4,\"btnR\":30,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#3B2A1A\",\"cDesc\":\"#7A5C3E\",\"cAcc\":\"#B45309\",\"cTag\":\"#B45309\",\"cField\":\"#00000000\",\"cFieldB\":\"#FFB45309\",\"cInput\":\"#3B2A1A\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#B45309\",\"cGetB\":\"#FFB45309\",\"cVerBg\":\"#FFB45309\",\"cVerBg2\":\"#FFD97706\",\"cVerT\":\"#FFFFFFFF\",\"cVerB\":\"#00000000\",\"tag\":\"ACCESS PASS\",\"tagChip\":false,\"bnR\":3,\"descChip\":false,\"fTitle\":14,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":14,\"showExit\":false,\"caps\":true}",
+            "{\"design\":6,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#04100A\",\"gc2\":\"#071D12\",\"gangle\":180,\"bgFx\":0,\"noise\":0,\"blur\":0,\"radius\":3,\"cardW\":86,\"cardH\":100,\"cardBW\":0,\"tAlign\":1,\"fieldStyle\":3,\"btnStyle\":3,\"btnStyleV\":3,\"fieldR\":10,\"fieldBW\":0.4,\"btnR\":10,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#9CFFB0\",\"cDesc\":\"#4ADE80\",\"cAcc\":\"#22C55E\",\"cTag\":\"#86EFAC\",\"cField\":\"#1122C55E\",\"cFieldB\":\"#9922C55E\",\"cInput\":\"#BBF7D0\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#86EFAC\",\"cGetB\":\"#00000000\",\"cVerBg\":\"#00000000\",\"cVerBg2\":\"#00000000\",\"cVerT\":\"#FFD1FAE5\",\"cVerB\":\"#00000000\",\"tag\":\"levi@access:~\",\"tagChip\":false,\"bnR\":1,\"descChip\":false,\"fTitle\":-2,\"fTag\":-2,\"fBtn\":-2,\"fInput\":-2,\"fDesc\":-2,\"deco\":true,\"enter\":1,\"showExit\":false,\"caps\":false}",
+            "{\"design\":7,\"bgType\":\"gradient\",\"grad\":16,\"gcustom\":true,\"gc1\":\"#0C1B2E\",\"gc2\":\"#3B1D6E\",\"gangle\":150,\"bgFx\":8,\"noise\":0,\"blur\":0,\"radius\":12,\"cardW\":78,\"cardH\":100,\"cardBW\":0,\"tAlign\":0,\"fieldStyle\":0,\"btnStyle\":4,\"btnStyleV\":5,\"fieldR\":100,\"fieldBW\":0.5,\"btnR\":100,\"btnBW\":0,\"btnS\":100,\"sTitle\":100,\"sDesc\":100,\"sInput\":100,\"sTag\":100,\"cTitle\":\"#FFFFFF\",\"cDesc\":\"#C4B5FD\",\"cAcc\":\"#A78BFA\",\"cTag\":\"#A78BFA\",\"cField\":\"#26FFFFFF\",\"cFieldB\":\"#55FFFFFF\",\"cInput\":\"#FFFFFF\",\"cGetBg\":\"#00000000\",\"cGetT\":\"#C4B5FD\",\"cGetB\":\"#00000000\",\"cVerBg\":\"#FF7C3AED\",\"cVerBg2\":\"#FF22D3EE\",\"cVerT\":\"#FFFFFFFF\",\"cVerB\":\"#00000000\",\"tag\":\"SECURE ACCESS\",\"tagChip\":false,\"bnR\":50,\"descChip\":false,\"fTitle\":9,\"fTag\":-1,\"fBtn\":-1,\"fInput\":-1,\"fDesc\":-1,\"deco\":true,\"enter\":8,\"showExit\":false,\"caps\":true}"};
+
+    public static int designOf(JSONObject c) { return Math.max(0, Math.min(DESIGN_NAMES.length - 1, c.optInt("design", 0))); }
+
+    public static JSONObject designDefaults(int i) {
+        try { return new JSONObject(DESIGN_DEFAULTS[Math.max(0, Math.min(DESIGN_DEFAULTS.length - 1, i))]); }
+        catch (Exception e) { return new JSONObject(); }
+    }
+
+    public static JSONObject merge(JSONObject base, JSONObject over) {
+        try {
+            java.util.Iterator<String> it = over.keys();
+            while (it.hasNext()) { String k = it.next(); base.put(k, over.get(k)); }
+        } catch (Exception e) { /* ignore */ }
+        return base;
+    }
+
+    static Typeface tfx(Context c, int i, boolean bold, String fam) {
+        if (i == -2) return Typeface.create(Typeface.MONOSPACE, bold ? Typeface.BOLD : Typeface.NORMAL);
+        Typeface t = font(c, i);
+        return t != null ? t : Typeface.create(fam, bold ? Typeface.BOLD : Typeface.NORMAL);
+    }
+
     // ================================================================ network ===================
     public interface Res { void done(String r, String err); }
     public interface Bm { void got(Bitmap b); }
@@ -317,7 +362,7 @@ public class Levi {
             addView(iv, new LayoutParams(-1, -1));
             setClipToOutline(true);
             setOutlineProvider(new ViewOutlineProvider() {
-                @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius); }
+                @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), Math.min(radius, Math.min(v.getWidth(), v.getHeight()) / 2f)); }
             });
         }
 
@@ -682,43 +727,223 @@ public class Levi {
         }
     }
 
+    // ================================================================ Deco (per-design ornaments) ===
+    static int al(int c, float f) { return (Math.max(0, Math.min(255, (int) (255 * f))) << 24) | (c & 0xFFFFFF); }
+
+    public static class Deco extends View {
+        final Card k;
+        final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float ph;
+        ValueAnimator va;
+
+        public Deco(Card k) { super(k.getContext()); this.k = k; }
+
+        void restart() {
+            if (va != null) { va.cancel(); va = null; }
+            int dz = k.design;
+            if (isAttachedToWindow() && B(k.cfg, "animOn", true) && (dz == 1 || dz == 6 || dz == 7)) {
+                va = ValueAnimator.ofFloat(0, 1);
+                va.setDuration(3200);
+                va.setRepeatCount(ValueAnimator.INFINITE);
+                va.setInterpolator(new LinearInterpolator());
+                va.addUpdateListener(an -> { ph = (Float) an.getAnimatedValue(); invalidate(); });
+                va.start();
+            }
+        }
+
+        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); restart(); }
+        @Override protected void onDetachedFromWindow() { super.onDetachedFromWindow(); if (va != null) { va.cancel(); va = null; } }
+
+        static void drawLock(Canvas cv, Paint p, float cx, float cy, float s, int color) {
+            p.setShader(null);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(color);
+            cv.drawRoundRect(new RectF(cx - s * .5f, cy - s * .08f, cx + s * .5f, cy + s * .5f), s * .12f, s * .12f, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(s * .13f);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            cv.drawArc(new RectF(cx - s * .3f, cy - s * .55f, cx + s * .3f, cy + s * .1f), 180, 180, false, p);
+            cv.drawLine(cx - s * .3f, cy - s * .22f, cx - s * .3f, cy - s * .06f, p);
+            cv.drawLine(cx + s * .3f, cy - s * .22f, cx + s * .3f, cy - s * .06f, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(0x88000000);
+            cv.drawCircle(cx, cy + s * .2f, s * .075f, p);
+        }
+
+        @Override protected void onDraw(Canvas cv) {
+            JSONObject c = k.cfg;
+            int w = k.cw, h = k.ch, dz = k.design;
+            if (w == 0) return;
+            float u = k.u;
+            int acc = col(c, "cAcc", "#22E4FF");
+            float rad = Math.min(F(c, "radius", 10.4) * u, Math.min(w, h) / 2f);
+            float sn = (float) Math.sin(ph * Math.PI * 2);
+            Rect ban = k.rc[Card.R_BAN];
+            p.setShader(null);
+            p.setPathEffect(null);
+            if (B(c, "deco", true)) {
+                switch (dz) {
+                    case 1: {
+                        float glow = 0.6f + 0.4f * sn;
+                        p.setStyle(Paint.Style.STROKE);
+                        RectF rr = new RectF(0.6f * u, 0.6f * u, w - 0.6f * u, h - 0.6f * u);
+                        for (int i = 4; i >= 1; i--) { p.setStrokeWidth(i * 0.8f * u); p.setColor(al(acc, 0.06f * glow)); cv.drawRoundRect(rr, rad, rad, p); }
+                        p.setStrokeWidth(0.45f * u); p.setColor(al(acc, 0.95f)); cv.drawRoundRect(rr, rad, rad, p);
+                        p.setStrokeWidth(0.7f * u); p.setStrokeCap(Paint.Cap.SQUARE);
+                        float L = 7 * u, o = 2.2f * u;
+                        cv.drawLine(o, o, o + L, o, p); cv.drawLine(o, o, o, o + L, p);
+                        cv.drawLine(w - o, o, w - o - L, o, p); cv.drawLine(w - o, o, w - o, o + L, p);
+                        cv.drawLine(o, h - o, o + L, h - o, p); cv.drawLine(o, h - o, o, h - o - L, p);
+                        cv.drawLine(w - o, h - o, w - o - L, h - o, p); cv.drawLine(w - o, h - o, w - o, h - o - L, p);
+                        p.setStrokeWidth(0.35f * u); p.setColor(al(acc, 0.8f));
+                        cv.drawRoundRect(new RectF(ban.left - 0.5f * u, ban.top - 0.5f * u, ban.right + 0.5f * u, ban.bottom + 0.5f * u), 2 * u, 2 * u, p);
+                        p.setStrokeWidth(Math.max(1f, 0.35f * u)); p.setColor(0x0DFFFFFF);
+                        for (float y = 0; y < h; y += 1.7f * u) cv.drawLine(0, y, w, y, p);
+                        break;
+                    }
+                    case 2: {
+                        float top = ban.bottom - 34 * u;
+                        p.setStyle(Paint.Style.FILL);
+                        p.setShader(new LinearGradient(0, top, 0, ban.bottom, 0x00000000, 0xD9000000, Shader.TileMode.CLAMP));
+                        cv.drawRect(0, top, w, ban.bottom, p);
+                        p.setShader(null);
+                        break;
+                    }
+                    case 3: {
+                        p.setStyle(Paint.Style.FILL);
+                        p.setColor(al(acc, 0.9f));
+                        cv.drawRoundRect(new RectF(w / 2f - 7 * u, 2f * u, w / 2f + 7 * u, 3.2f * u), u, u, p);
+                        break;
+                    }
+                    case 4: {
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(Math.max(1f, 0.3f * u));
+                        p.setColor(al(acc, 0.9f));
+                        Rect g = k.rc[Card.R_GET];
+                        cv.drawLine(0, g.top, w, g.top, p);
+                        cv.drawLine(w / 2f, g.top, w / 2f, h, p);
+                        if (S(c, "bnSrc", "").isEmpty()) drawLock(cv, p, ban.centerX(), ban.centerY(), ban.width() * 0.46f, 0xFFFFFFFF);
+                        break;
+                    }
+                    case 5: {
+                        float ny = k.notchY;
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(Math.max(1f, 0.32f * u));
+                        p.setColor(al(acc, 0.65f));
+                        p.setPathEffect(new DashPathEffect(new float[]{1.7f * u, 1.2f * u}, 0));
+                        cv.drawLine(6 * u, ny, w - 6 * u, ny, p);
+                        p.setPathEffect(null);
+                        p.setStyle(Paint.Style.FILL);
+                        p.setColor(al(acc, 0.85f));
+                        Random r = new Random(5);
+                        float x = 6 * u, top = h - 9 * u;
+                        while (x < w - 6 * u) {
+                            float bw = (0.35f + r.nextFloat() * 1.1f) * u;
+                            if (r.nextInt(3) > 0) cv.drawRect(x, top, Math.min(x + bw, w - 6 * u), top + 5.5f * u, p);
+                            x += bw + (0.3f + r.nextFloat() * 0.7f) * u;
+                        }
+                        break;
+                    }
+                    case 6: {
+                        p.setStyle(Paint.Style.FILL);
+                        p.setColor(al(acc, 0.16f));
+                        cv.drawRect(0, 0, w, 9 * u, p);
+                        p.setColor(al(acc, 0.5f));
+                        cv.drawRect(0, 9 * u, w, 9 * u + Math.max(1f, 0.25f * u), p);
+                        int[] dc = {0xFFFF5F57, 0xFFFFBD2E, 0xFF28C840};
+                        for (int i = 0; i < 3; i++) { p.setColor(dc[i]); cv.drawCircle((4 + i * 3.6f) * u, 4.5f * u, 1.1f * u, p); }
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(0.4f * u);
+                        p.setColor(al(acc, 0.75f));
+                        cv.drawRoundRect(new RectF(0.2f * u, 0.2f * u, w - 0.2f * u, h - 0.2f * u), rad, rad, p);
+                        p.setStrokeWidth(Math.max(1f, 0.3f * u));
+                        p.setColor(0x0AFFFFFF);
+                        for (float y = 9 * u; y < h; y += 1.8f * u) cv.drawLine(0, y, w, y, p);
+                        Rect f = k.rc[Card.R_FLD];
+                        p.setStyle(Paint.Style.FILL);
+                        p.setTypeface(Typeface.MONOSPACE);
+                        p.setTextSize(4.4f * u);
+                        p.setColor(acc);
+                        cv.drawText("$", f.left + 3 * u, f.centerY() + 1.5f * u, p);
+                        if (sn > 0) { p.setColor(al(acc, 0.9f)); cv.drawRect(w - 7 * u, 3 * u, w - 5.6f * u, 6 * u, p); }
+                        break;
+                    }
+                    case 7: {
+                        float cx = ban.centerX(), cy = ban.centerY(), r0 = ban.width() / 2f;
+                        p.setStyle(Paint.Style.FILL);
+                        p.setShader(new RadialGradient(cx, cy, r0 * 2.0f, al(acc, 0.50f + 0.1f * sn), al(acc, 0f), Shader.TileMode.CLAMP));
+                        cv.drawCircle(cx, cy, r0 * 2.0f, p);
+                        p.setShader(null);
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(0.7f * u);
+                        p.setColor(al(acc, 0.9f));
+                        cv.drawCircle(cx, cy, r0 + 1.2f * u * (1f + 0.05f * sn), p);
+                        p.setStrokeWidth(0.4f * u);
+                        p.setColor(al(acc, 0.35f));
+                        cv.drawCircle(cx, cy, r0 + 3f * u * (1f - 0.05f * sn), p);
+                        if (S(c, "bnSrc", "").isEmpty()) drawLock(cv, p, cx, cy, r0 * 0.9f, 0xFFFFFFFF);
+                        break;
+                    }
+                    default: break;
+                }
+            }
+            if (I(c, "btnStyleV", 0) == 5) {
+                Rect v = k.rc[Card.R_VER];
+                int g1 = col(c, "cVerBg", "#7C3AED");
+                float vr = v.height() / 2f * F(c, "btnR", 100) / 100f;
+                p.setStyle(Paint.Style.FILL);
+                p.setShader(null);
+                p.setColor(al(g1, 0.12f));
+                for (int i = 3; i >= 1; i--)
+                    cv.drawRoundRect(new RectF(v.left - i * 0.9f * u, v.top - i * 0.5f * u, v.right + i * 0.9f * u, v.bottom + i * 1.1f * u), vr + i * u, vr + i * u, p);
+            }
+        }
+    }
+
     // ================================================================ The dialog card ===========
     public static class Card extends ViewGroup {
-        public JSONObject cfg = new JSONObject();
-        public float scale = 1f;          // admin preview uses < 1
+        public JSONObject cfg = new JSONObject();   // effective config = design defaults + user config
+        public float scale = 1f;                    // admin preview uses < 1
+        public int design = 0;
         public final Bg bg;
         public final Media bgVid, banner;
-        public final TextView title, desc, getBtn, verifyBtn, exitBtn;
+        public final Deco deco;
+        public final TextView title, desc, tag, getBtn, verifyBtn, exitBtn;
         public final EditText input;
         public final Eye eye;
         public final LinearLayout field;
-        float u = 3f;
+        float u = 3f, notchY = 0;
         int cw, ch, lastW = -1;
         boolean dirty = true;
-        final Rect[] rc = new Rect[7];
+        final Rect[] rc = new Rect[8];
         final Paint bp = new Paint(Paint.ANTI_ALIAS_FLAG);
-        static final int R_BAN = 0, R_TIT = 1, R_DES = 2, R_FLD = 3, R_GET = 4, R_VER = 5, R_EXT = 6;
+        final Paint clr = new Paint(Paint.ANTI_ALIAS_FLAG);
+        static final int R_BAN = 0, R_TIT = 1, R_DES = 2, R_FLD = 3, R_GET = 4, R_VER = 5, R_EXT = 6, R_TAG = 7;
 
         public Card(Context c) {
             super(c);
             bgVid = new Media(c);
             bg = new Bg(c);
             banner = new Media(c);
+            deco = new Deco(this);
             desc = new TextView(c);
             title = new TextView(c);
+            tag = new TextView(c);
             field = new LinearLayout(c);
             input = new EditText(c);
             eye = new Eye(c);
             getBtn = new TextView(c);
             verifyBtn = new TextView(c);
             exitBtn = new TextView(c);
+            clr.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
 
-            title.setGravity(Gravity.CENTER);
             title.setSingleLine(true);
             title.setIncludeFontPadding(false);
             title.setLetterSpacing(0.02f);
-            desc.setGravity(Gravity.CENTER);
+            tag.setSingleLine(true);
+            tag.setIncludeFontPadding(false);
             desc.setMaxLines(2);
+            desc.setIncludeFontPadding(false);
             field.setOrientation(LinearLayout.HORIZONTAL);
             field.setGravity(Gravity.CENTER_VERTICAL);
             input.setBackground(null);
@@ -748,26 +973,39 @@ public class Levi {
                 });
             }
             exitBtn.setText("\u2715");
-            addView(bgVid); addView(bg); addView(banner); addView(desc); addView(title);
+            addView(bgVid); addView(bg); addView(banner); addView(deco); addView(desc); addView(title); addView(tag);
             addView(field); addView(getBtn); addView(verifyBtn); addView(exitBtn);
             setClipToOutline(true);
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override public void getOutline(View v, Outline o) {
-                    o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), Math.min(F(cfg, "radius", 10.4) * u, Math.min(v.getWidth(), v.getHeight()) / 2f));
+                    float r = Math.min(F(cfg, "radius", 10.4) * u, Math.min(v.getWidth(), v.getHeight()) / 2f);
+                    if (design == 3) o.setRoundRect(0, 0, v.getWidth(), (int) (v.getHeight() + r + 2), r);   // sheet: only top corners round
+                    else o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), r);
                 }
             });
             apply(new JSONObject());
         }
 
-        public void apply(JSONObject c) {
-            cfg = c;
+        public void apply(JSONObject raw) {
+            JSONObject eff = merge(designDefaults(designOf(raw)), raw);
+            if (!raw.has("design") && raw.has("cBtn")) {   // v1 configs
+                try {
+                    eff.put("cGetBg", raw.get("cBtn")); eff.put("cVerBg", raw.get("cBtn")); eff.put("cVerBg2", raw.get("cBtn"));
+                    if (raw.has("cBtnT")) { eff.put("cGetT", raw.get("cBtnT")); eff.put("cVerT", raw.get("cBtnT")); }
+                    if (raw.has("cBtnB")) { eff.put("cGetB", raw.get("cBtnB")); eff.put("cVerB", raw.get("cBtnB")); }
+                } catch (Exception ex) { /* ignore */ }
+            }
+            cfg = eff;
+            design = designOf(eff);
             dirty = true;
-            boolean vid = S(c, "bgType", "gradient").equals("video");
+            boolean vid = S(eff, "bgType", "gradient").equals("video");
             setBackgroundColor(vid ? 0xFF101820 : 0);
-            bg.set(c);
-            if (vid) { bgVid.setVisibility(VISIBLE); bgVid.set(S(c, "bgSrc", ""), true, 720); }
+            setLayerType(design == 5 ? LAYER_TYPE_HARDWARE : LAYER_TYPE_NONE, null);
+            bg.set(eff);
+            if (vid) { bgVid.setVisibility(VISIBLE); bgVid.set(S(eff, "bgSrc", ""), true, 720); }
             else { bgVid.clear(); bgVid.setVisibility(GONE); }
-            banner.set(S(c, "bnSrc", ""), S(c, "bnType", "image").equals("video"), 1100);
+            banner.set(S(eff, "bnSrc", ""), S(eff, "bnType", "image").equals("video"), 1100);
+            deco.restart();
             requestLayout();
             invalidate();
         }
@@ -776,39 +1014,96 @@ public class Levi {
             return new Rect((int) (x * u), (int) (y * u), (int) ((x + w) * u), (int) ((y + h) * u));
         }
 
+        Rect btn(float cx, float cy, float w, float h, float s) {
+            float ww = Math.min(w * s, 96f), hh = h * s;
+            return r(cx - ww / 2, cy - hh / 2, ww, hh);
+        }
+
+        void layoutRects(float H, float d) {
+            float s = F(cfg, "btnS", 100) / 100f;
+            rc[R_TAG] = r(0, 0, 1, 1);
+            switch (design) {
+                case 1:
+                    rc[R_TAG] = r(6, 5, 88, 5); rc[R_TIT] = r(6, 10.5f, 88, 11); rc[R_BAN] = r(6, 25, 88, 30 + d);
+                    rc[R_DES] = r(8, 45 + d, 84, 8); rc[R_FLD] = r(6, 60 + d, 88, 12.5f);
+                    rc[R_GET] = btn(27.5f, 84.5f + d, 42, 11.5f, s); rc[R_VER] = btn(72.5f, 84.5f + d, 42, 11.5f, s);
+                    rc[R_EXT] = r(87, 3, 8, 8);
+                    break;
+                case 2:
+                    rc[R_BAN] = r(0, 0, 100, 58 + d); rc[R_TAG] = r(5, 5, 26, 5.5f); rc[R_TIT] = r(5, 44 + d, 90, 12);
+                    rc[R_DES] = r(6, 60 + d, 88, 9); rc[R_FLD] = r(6, 71 + d, 88, 12.5f);
+                    rc[R_VER] = btn(50, 92.5f + d, 88, 12.5f, s); rc[R_GET] = btn(50, 107 + d, 40, 6, s);
+                    rc[R_EXT] = r(88, 3, 8.5f, 8.5f);
+                    break;
+                case 3:
+                    rc[R_TAG] = r(6, 5, 60, 4); rc[R_TIT] = r(6, 9, 70, 10); rc[R_DES] = r(6, 19, 88, 8.5f);
+                    rc[R_BAN] = r(78, 5, 16, 16); rc[R_FLD] = r(6, 30, 88, 11.5f);
+                    rc[R_VER] = btn(50, 53, 88, 12.5f, s); rc[R_GET] = btn(50, 69.5f, 88, 12.5f, s);
+                    rc[R_EXT] = r(86.5f, 22.5f, 7, 7);
+                    break;
+                case 4:
+                    rc[R_BAN] = r(36, 5, 28, 28); rc[R_TIT] = r(4, 35, 92, 8.5f); rc[R_TAG] = r(4, 43.5f, 92, 4);
+                    rc[R_DES] = r(8, 44, 84, 9); rc[R_FLD] = r(8, 55, 84, 10.5f);
+                    rc[R_GET] = r(0, 69.5f, 50, H - 69.5f); rc[R_VER] = r(50, 69.5f, 50, H - 69.5f);
+                    rc[R_EXT] = r(88, 2, 8, 8);
+                    break;
+                case 5:
+                    rc[R_BAN] = r(5, 5, 90, 32 + d); rc[R_TAG] = r(5, 39 + d, 60, 4.5f); rc[R_TIT] = r(5, 43.5f + d, 90, 10);
+                    rc[R_DES] = r(5, 54 + d, 90, 8); rc[R_FLD] = r(6, 68 + d, 88, 12);
+                    rc[R_GET] = btn(27.5f, 90 + d, 41, 11, s); rc[R_VER] = btn(72.5f, 90 + d, 41, 11, s);
+                    rc[R_EXT] = r(87, 6, 7, 7);
+                    notchY = (64.5f + d) * u;
+                    break;
+                case 6:
+                    rc[R_TAG] = r(14, 0, 72, 9); rc[R_BAN] = r(6, 12.5f, 88, 24 + d); rc[R_TIT] = r(6, 39 + d, 88, 8);
+                    rc[R_DES] = r(6, 47.5f + d, 88, 8.5f); rc[R_FLD] = r(6, 57.5f + d, 88, 11);
+                    rc[R_GET] = btn(27.5f, 78 + d, 42, 10, s); rc[R_VER] = btn(72.5f, 78 + d, 42, 10, s);
+                    rc[R_EXT] = r(88, 1.2f, 7, 7);
+                    break;
+                case 7:
+                    rc[R_BAN] = r(35, 6, 30, 30); rc[R_TIT] = r(4, 38.5f, 92, 11); rc[R_TAG] = r(4, 50, 92, 5);
+                    rc[R_DES] = r(8, 55.5f, 84, 8.5f); rc[R_FLD] = r(7, 66, 86, 12.5f);
+                    rc[R_VER] = btn(50, 88, 86, 13, s); rc[R_GET] = btn(50, 101, 40, 6, s);
+                    rc[R_EXT] = r(88, 3, 8.5f, 8.5f);
+                    break;
+                default:
+                    rc[R_BAN] = r(2.7f, 13.9f, 94.6f, 46 + d); rc[R_TIT] = r(0, 0, 100, 13.9f);
+                    rc[R_DES] = r(4.7f, 48.9f + d, 90.6f, 9); rc[R_FLD] = r(5.2f, 63.7f + d, 89.7f, 13.7f);
+                    rc[R_GET] = btn(28.55f, 88.95f + d, 34.7f, 12.7f, s); rc[R_VER] = btn(70.85f, 88.95f + d, 34.7f, 12.7f, s);
+                    rc[R_EXT] = r(89, 2.2f, 8.5f, 8.5f);
+                    break;
+            }
+        }
+
         @Override protected void onMeasure(int ws, int hs) {
             DisplayMetrics dm = getResources().getDisplayMetrics();
             int avail = MeasureSpec.getSize(ws);
             if (avail <= 0) avail = dm.widthPixels;
-            float real = Math.min(dm.widthPixels * F(cfg, "cardW", 76) / 100f, dp(getContext(), 420));
+            float pct = F(cfg, "cardW", 76) / 100f;
+            float real = design == 3 ? dm.widthPixels * pct : Math.min(dm.widthPixels * pct, dp(getContext(), 420));
             int w = (int) Math.min(avail, real * scale);
             float d = F(cfg, "cardH", 100) - 100;
-            int h = (int) (w * (100 + d) / 100f);
+            float H = DESIGN_H0[design] + d;
+            int h = (int) (w * H / 100f);
             u = w / 100f; cw = w; ch = h;
-            float s = F(cfg, "btnS", 100) / 100f, bw = 34.7f * s, bh = 12.7f * s, cy = 82.6f + d + 6.35f;
-            rc[R_BAN] = r(2.7f, 13.9f, 94.6f, 46f + d);
-            rc[R_TIT] = r(0, 0, 100, 13.9f);
-            rc[R_DES] = r(4.7f, 13.9f + 46f + d - 11f, 90.6f, 9f);
-            rc[R_FLD] = r(5.2f, 63.7f + d, 89.7f, 13.7f);
-            rc[R_GET] = r(28.55f - bw / 2, cy - bh / 2, bw, bh);
-            rc[R_VER] = r(70.85f - bw / 2, cy - bh / 2, bw, bh);
-            rc[R_EXT] = r(100 - 11f, 2.2f, 8.5f, 8.5f);
+            layoutRects(H, d);
             if (dirty || lastW != w) { style(); dirty = false; lastW = w; }
             setMeasuredDimension(w, h);
             int ex = MeasureSpec.EXACTLY;
-            bgVid.measure(MeasureSpec.makeMeasureSpec(w, ex), MeasureSpec.makeMeasureSpec(h, ex));
-            bg.measure(MeasureSpec.makeMeasureSpec(w, ex), MeasureSpec.makeMeasureSpec(h, ex));
-            View[] vs = {banner, title, desc, field, getBtn, verifyBtn, exitBtn};
-            int[] ix = {R_BAN, R_TIT, R_DES, R_FLD, R_GET, R_VER, R_EXT};
+            View[] full = {bgVid, bg, deco};
+            for (View v : full) v.measure(MeasureSpec.makeMeasureSpec(w, ex), MeasureSpec.makeMeasureSpec(h, ex));
+            View[] vs = {banner, title, desc, tag, field, getBtn, verifyBtn, exitBtn};
+            int[] ix = {R_BAN, R_TIT, R_DES, R_TAG, R_FLD, R_GET, R_VER, R_EXT};
             for (int i = 0; i < vs.length; i++)
-                vs[i].measure(MeasureSpec.makeMeasureSpec(rc[ix[i]].width(), ex), MeasureSpec.makeMeasureSpec(rc[ix[i]].height(), ex));
+                vs[i].measure(MeasureSpec.makeMeasureSpec(Math.max(1, rc[ix[i]].width()), ex), MeasureSpec.makeMeasureSpec(Math.max(1, rc[ix[i]].height()), ex));
         }
 
-        @Override protected void onLayout(boolean ch2, int l, int t, int rr, int b) {
+        @Override protected void onLayout(boolean changed, int l, int t, int rr, int b) {
             bgVid.layout(0, 0, cw, ch);
             bg.layout(0, 0, cw, ch);
-            View[] vs = {banner, title, desc, field, getBtn, verifyBtn, exitBtn};
-            int[] ix = {R_BAN, R_TIT, R_DES, R_FLD, R_GET, R_VER, R_EXT};
+            deco.layout(0, 0, cw, ch);
+            View[] vs = {banner, title, desc, tag, field, getBtn, verifyBtn, exitBtn};
+            int[] ix = {R_BAN, R_TIT, R_DES, R_TAG, R_FLD, R_GET, R_VER, R_EXT};
             for (int i = 0; i < vs.length; i++) { Rect q = rc[ix[i]]; vs[i].layout(q.left, q.top, q.right, q.bottom); }
         }
 
@@ -821,33 +1116,76 @@ public class Levi {
         void style() {
             Context x = getContext();
             JSONObject c = cfg;
-            // title (shrinks to fit one line, like the html)
+            int dz = design;
+            boolean left = I(c, "tAlign", 0) == 1;
+            int hg = left ? (Gravity.CENTER_VERTICAL | Gravity.START) : Gravity.CENTER;
+
+            // ---- title (shrinks to fit one line)
             String tx = S(c, "title", "To access this you need access key");
             if (B(c, "caps", true)) tx = tx.toUpperCase();
             title.setText(tx);
-            title.setTypeface(font(x, I(c, "fTitle", 0)) != null ? font(x, I(c, "fTitle", 0)) : Typeface.create("sans-serif-condensed", Typeface.BOLD));
+            title.setTypeface(tfx(x, I(c, "fTitle", 0), true, "sans-serif-condensed"));
             title.setTextColor(col(c, "cTitle", "#000000"));
-            float tsz = 9.2f * u * F(c, "sTitle", 100) / 100f;
+            title.setGravity(hg);
+            float tsz = TSZ[dz] * u * F(c, "sTitle", 100) / 100f;
             Paint tp = new Paint(title.getPaint());
             tp.setTextSize(tsz);
             tp.setTypeface(title.getTypeface());
-            float tw = tp.measureText(tx);
-            if (tw > 96 * u) tsz *= 96 * u / tw;
+            float aw = rc[R_TIT].width() * 0.96f, tw = tp.measureText(tx);
+            if (tw > aw && tw > 0) tsz *= aw / tw;
             title.setTextSize(TypedValue.COMPLEX_UNIT_PX, tsz);
 
-            // field
-            GradientDrawable fg = new GradientDrawable();
-            fg.setColor(col(c, "cField", "#5214283C"));
-            fg.setCornerRadius(13.7f * u / 2f * F(c, "fieldR", 100) / 100f);
-            fg.setStroke(Math.max(1, (int) (F(c, "fieldBW", 0.75) * u)), col(c, "cFieldB", "#EBFFFFFF"));
-            field.setBackground(fg);
-            field.setPadding((int) (3.8f * u), 0, (int) (3.5f * u), 0);
+            // ---- tag line
+            String tg = S(c, "tag", "");
+            tag.setVisibility(tg.isEmpty() ? GONE : VISIBLE);
+            tag.setText(tg);
+            tag.setTypeface(tfx(x, I(c, "fTag", -1), true, "sans-serif"));
+            tag.setTextSize(TypedValue.COMPLEX_UNIT_PX, 3.0f * u * F(c, "sTag", 100) / 100f);
+            tag.setLetterSpacing(0.14f);
+            if (B(c, "tagChip", false)) {
+                GradientDrawable tgd = new GradientDrawable();
+                tgd.setColor(col(c, "cAcc", "#F59E0B"));
+                tgd.setCornerRadius(rc[R_TAG].height() / 2f);
+                tag.setBackground(tgd);
+                tag.setGravity(Gravity.CENTER);
+                tag.setTextColor(col(c, "cTag", "#0F172A"));
+            } else {
+                tag.setBackground(null);
+                tag.setGravity(hg);
+                tag.setTextColor(col(c, "cTag", "#12B76A"));
+            }
+
+            // ---- input field
+            int fs = I(c, "fieldStyle", 0), fh = Math.max(1, rc[R_FLD].height());
+            int fill = col(c, "cField", "#5214283C"), bord = col(c, "cFieldB", "#EBFFFFFF");
+            int sw = Math.max(1, (int) (F(c, "fieldBW", 0.75) * u));
+            float frad = fh / 2f * F(c, "fieldR", 100) / 100f;
+            Drawable fd;
+            if (fs == 1) {
+                GradientDrawable base = new GradientDrawable();
+                base.setColor(fill);
+                GradientDrawable ln = new GradientDrawable();
+                ln.setColor(bord);
+                LayerDrawable ld = new LayerDrawable(new Drawable[]{base, ln});
+                ld.setLayerInset(1, 0, Math.max(0, fh - Math.max(2, sw * 2)), 0, 0);
+                fd = ld;
+            } else {
+                GradientDrawable g = new GradientDrawable();
+                g.setColor(fill);
+                g.setCornerRadius(fs == 3 ? Math.min(frad, 2 * u) : frad);
+                if (fs == 2) g.setStroke(sw, bord, 3 * u, 2 * u);
+                else if (fs == 4) g.setStroke(Math.max(sw, (int) (0.5f * u)), bord);
+                else g.setStroke(sw, bord);
+                fd = g;
+            }
+            field.setBackground(fd);
+            field.setPadding((int) (fs == 3 ? 9f * u : 3.8f * u), 0, (int) (3.5f * u), 0);
             int ic = col(c, "cInput", "#FFFFFF");
             input.setTextColor(ic);
             input.setHintTextColor((ic & 0x00FFFFFF) | 0xB8000000);
             input.setHint(S(c, "hint", "enter your key here. . . . ."));
-            input.setTypeface(tf(x, I(c, "fInput", -1), false));
-            input.setTextSize(TypedValue.COMPLEX_UNIT_PX, 3.6f * u * F(c, "sInput", 100) / 100f);
+            input.setTypeface(tfx(x, I(c, "fInput", -1), false, "sans-serif"));
+            input.setTextSize(TypedValue.COMPLEX_UNIT_PX, INSZ[dz] * u * F(c, "sInput", 100) / 100f);
             input.setLetterSpacing(0.02f);
             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) eye.getLayoutParams();
             lp.width = lp.height = (int) (5.6f * u);
@@ -855,28 +1193,33 @@ public class Levi {
             eye.color = ic;
             eye.invalidate();
 
-            // buttons
-            float s = F(c, "btnS", 100) / 100f;
-            styleBtn(getBtn, S(c, "getTxt", "Get Key"), s);
-            styleBtn(verifyBtn, S(c, "verTxt", "Verify"), s);
+            // ---- buttons
+            float bs = F(c, "btnS", 100) / 100f;
+            int vb = col(c, "cVerBg", "#61FFFFFF");
+            int vb2 = c.has("cVerBg2") ? col(c, "cVerBg2", "#61FFFFFF") : vb;
+            styleBtn(getBtn, S(c, "getTxt", "Get Key"), I(c, "btnStyle", 0), col(c, "cGetBg", "#61FFFFFF"), col(c, "cGetBg", "#61FFFFFF"),
+                    col(c, "cGetT", "#000000"), col(c, "cGetB", "#FFFFFFFF"), rc[R_GET].height(), false, bs);
+            styleBtn(verifyBtn, S(c, "verTxt", "Verify"), I(c, "btnStyleV", 0), vb, vb2,
+                    col(c, "cVerT", "#000000"), col(c, "cVerB", "#FFFFFFFF"), rc[R_VER].height(), true, bs);
 
-            // banner
+            // ---- banner / description / exit
             banner.setRadius(F(c, "bnR", 5.8) * u);
-
-            // description overlay
             String ds = S(c, "desc", "");
             desc.setVisibility(ds.isEmpty() ? GONE : VISIBLE);
             desc.setText(ds);
             desc.setTextColor(col(c, "cDesc", "#FFFFFF"));
-            desc.setTypeface(tf(x, I(c, "fDesc", -1), false));
-            desc.setTextSize(TypedValue.COMPLEX_UNIT_PX, 3.3f * u * F(c, "sDesc", 100) / 100f);
-            GradientDrawable dg = new GradientDrawable();
-            dg.setColor(0x66000000);
-            dg.setCornerRadius(3 * u);
-            desc.setBackground(dg);
-            desc.setPadding((int) (2 * u), 0, (int) (2 * u), 0);
+            desc.setTypeface(tfx(x, I(c, "fDesc", -1), false, "sans-serif"));
+            desc.setTextSize(TypedValue.COMPLEX_UNIT_PX, DSZ[dz] * u * F(c, "sDesc", 100) / 100f);
+            desc.setGravity(hg);
+            if (B(c, "descChip", false)) {
+                GradientDrawable dg = new GradientDrawable();
+                dg.setColor(0x66000000);
+                dg.setCornerRadius(3 * u);
+                desc.setBackground(dg);
+                desc.setPadding((int) (2 * u), 0, (int) (2 * u), 0);
+                desc.setGravity(Gravity.CENTER);
+            } else { desc.setBackground(null); desc.setPadding(0, 0, 0, 0); }
 
-            // exit chip
             exitBtn.setVisibility(B(c, "showExit", false) ? VISIBLE : GONE);
             exitBtn.setTextColor(0xFFFFFFFF);
             exitBtn.setTextSize(TypedValue.COMPLEX_UNIT_PX, 4f * u);
@@ -884,22 +1227,35 @@ public class Levi {
             eg.setShape(GradientDrawable.OVAL);
             eg.setColor(0x66000000);
             exitBtn.setBackground(eg);
-
+            deco.restart();
             invalidateOutline();
         }
 
-        void styleBtn(TextView b, String txt, float s) {
+        void styleBtn(TextView b, String txt, int st, int bg1, int bg2, int tc, int bd, int hp, boolean bold, float bs) {
+            Context x = getContext();
             JSONObject c = cfg;
-            GradientDrawable g = new GradientDrawable();
-            g.setColor(col(c, "cBtn", "#61FFFFFF"));
-            g.setCornerRadius(12.7f * u * s / 2f * F(c, "btnR", 100) / 100f);
+            GradientDrawable g = null;
+            float rad = hp / 2f * F(c, "btnR", 100) / 100f;
             int bw = (int) (F(c, "btnBW", 0) * u);
-            if (bw > 0) g.setStroke(bw, col(c, "cBtnB", "#FFFFFFFF"));
+            String t = txt;
+            b.getPaint().setUnderlineText(false);
+            if (st == 0 || st == 5) {
+                g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{bg1, bg2});
+                if (bw > 0) g.setStroke(bw, bd);
+            } else if (st == 2) {
+                g = new GradientDrawable();
+                g.setColor(0);
+                g.setStroke(Math.max(1, (int) (0.45f * u)), bd);
+            } else if (st == 3) {
+                t = "[ " + txt.toLowerCase() + " ]";
+            }
+            if (g != null) g.setCornerRadius(rad);
             b.setBackground(g);
-            b.setText(txt);
-            b.setTextColor(col(c, "cBtnT", "#000000"));
-            b.setTypeface(tf(getContext(), I(c, "fBtn", -1), true));
-            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, 4.6f * u * s);
+            b.setText(t);
+            if (st == 4) b.getPaint().setUnderlineText(true);
+            b.setTextColor(tc);
+            b.setTypeface(tfx(x, I(c, "fBtn", -1), bold || st == 0 || st == 5, "sans-serif"));
+            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, BSZ[design] * u * bs * (st == 4 ? 0.85f : 1f));
         }
 
         @Override protected void dispatchDraw(Canvas cv) {
@@ -911,6 +1267,10 @@ public class Levi {
                 bp.setColor(col(cfg, "cCardB", "#FFFFFFFF"));
                 float rad = Math.min(F(cfg, "radius", 10.4) * u, Math.min(cw, ch) / 2f);
                 cv.drawRoundRect(new RectF(bw / 2, bw / 2, cw - bw / 2, ch - bw / 2), rad, rad, bp);
+            }
+            if (design == 5 && B(cfg, "deco", true)) {   // ticket notches (punch real holes)
+                cv.drawCircle(0, notchY, 4 * u, clr);
+                cv.drawCircle(cw, notchY, 4 * u, clr);
             }
         }
 
@@ -1066,6 +1426,7 @@ public class Levi {
             card = new Card(a);
             card.apply(cfg);
             root.addView(card, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+            place();
             dlg.setContentView(root);
             card.getBtn.setOnClickListener(v -> openGetKey());
             card.verifyBtn.setOnClickListener(v -> verify());
@@ -1073,6 +1434,12 @@ public class Levi {
             dlg.show();
             card.post(() -> card.playEnter());
             poll();
+        }
+
+        void place() {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) card.getLayoutParams();
+            int g = card.design == 3 ? (Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL) : Gravity.CENTER;
+            if (lp.gravity != g) { lp.gravity = g; card.setLayoutParams(lp); }
         }
 
         void poll() {
@@ -1083,7 +1450,7 @@ public class Levi {
                         String before = raw;
                         parse(r);
                         if (found && !enabled) { closeOk(false); return; }
-                        if (!before.equals(raw) && card != null) card.apply(cfg);
+                        if (!before.equals(raw) && card != null) { card.apply(cfg); place(); }
                     }
                     poll();
                 });
