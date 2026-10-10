@@ -368,6 +368,22 @@ public final class UI {
                 cv.drawRoundRect(.2f * s, .12f * s, .8f * s, .88f * s, .12f * s, .12f * s, p);
                 cv.drawLine(.34f * s, .38f * s, .66f * s, .38f * s, p);
                 cv.drawLine(.34f * s, .56f * s, .58f * s, .56f * s, p);
+            } else if (type == 4) {
+                cv.drawCircle(.44f * s, .44f * s, .26f * s, p);
+                cv.drawLine(.63f * s, .63f * s, .86f * s, .86f * s, p);
+            } else if (type == 5) {
+                cv.drawCircle(.5f * s, .5f * s, .37f * s, p);
+                cv.drawLine(.5f * s, .46f * s, .5f * s, .7f * s, p);
+                p.setStyle(Paint.Style.FILL);
+                cv.drawCircle(.5f * s, .3f * s, .045f * s, p);
+            } else if (type == 6) {
+                p.setStyle(Paint.Style.FILL);
+                cv.drawCircle(.5f * s, .2f * s, .07f * s, p);
+                cv.drawCircle(.5f * s, .5f * s, .07f * s, p);
+                cv.drawCircle(.5f * s, .8f * s, .07f * s, p);
+            } else if (type == 7) {
+                cv.drawRoundRect(.3f * s, .3f * s, .84f * s, .84f * s, .1f * s, .1f * s, p);
+                cv.drawRoundRect(.14f * s, .14f * s, .64f * s, .64f * s, .1f * s, .1f * s, p);
             } else {
                 cv.drawCircle(.5f * s, .5f * s, .17f * s, p);
                 for (int i = 0; i < 8; i++) {

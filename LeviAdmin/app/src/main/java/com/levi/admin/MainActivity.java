@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
     PickCb pend;
 
     static final String PERM = "<uses-permission android:name=\"android.permission.INTERNET\"/>";
-    static final String RULES = "{\n  \"rules\": {\n    \".read\": false,\n    \".write\": false,\n    \"levi_apps\":  { \".read\": true, \".write\": true },\n    \"levi_media\": { \".read\": true, \".write\": true },\n    \"levi_admin\": { \".read\": true, \".write\": true }\n  }\n}";
+    static final String RULES = "{\n  \"rules\": {\n    \".read\": false,\n    \".write\": false,\n    \"levi_apps\":  { \".read\": true, \".write\": true },\n    \"levi_keys\":  { \".read\": true, \".write\": true },\n    \"levi_ping\":  { \".read\": true, \".write\": true },\n    \"levi_media\": { \".read\": true, \".write\": true },\n    \"levi_admin\": { \".read\": true, \".write\": true }\n  }\n}";
 
     // =============================================================== lifecycle =================
     @Override protected void onCreate(Bundle b) {
@@ -293,7 +293,7 @@ public class MainActivity extends Activity {
         c.addView(m, UI.lp(this, 0, -2, 14, 0, 8, 0));
         ((LinearLayout.LayoutParams) m.getLayoutParams()).weight = 1f;
         c.addView(chip(app.optBoolean("enabled", false) ? "LIVE" : "OFF", app.optBoolean("enabled", false)));
-        c.setOnClickListener(v -> push(detail(ck)));
+        c.setOnClickListener(v -> push(new Keys(this, ck).view()));
         UI.press(c);
         UI.pop(c, idx);
         c.setLayoutParams(UI.lp(this, -1, -2, 0, 0, 0, 12));
@@ -668,7 +668,7 @@ public class MainActivity extends Activity {
         try {
             final String ck = Levi.randKey("LV");
             JSONObject a = new JSONObject();
-            a.put("name", nm).put("desc", ds).put("date", date).put("icon", icon).put("loginKey", Levi.randKey("LEVI"))
+            a.put("name", nm).put("desc", ds).put("date", date).put("icon", icon)
                     .put("enabled", false).put("created", System.currentTimeMillis());
             a.put("cfg", new JSONObject().put("design", 7).put("bgType", "gradient"));
             final JSONObject fa = a;
@@ -699,9 +699,9 @@ public class MainActivity extends Activity {
         hc.addView(UI.tv(this, "Added " + app.optString("date"), 11, UI.sub(), false), UI.lp(this, -2, -2, 0, 6, 0, 0));
         c.addView(hc, UI.lp(this, -1, -2, 0, 0, 0, 12));
         UI.pop(hc, 0);
+        c.addView(UI.btn(this, "\uD83D\uDD11  Manage login keys", false, v -> pop()), UI.lp(this, -1, -2, 0, 0, 0, 12));
         View[] rows = {
                 copyRow("App Connect Key", ck, true),
-                loginRow(ck, app),
                 copyRow("Firebase databaseURL", base, true),
                 copyRow("INTERNET permission", PERM, true)};
         for (int i = 0; i < rows.length; i++) { c.addView(rows[i], UI.lp(this, -1, -2, 0, 0, 0, 12)); UI.pop(rows[i], i + 1); }
@@ -726,7 +726,7 @@ public class MainActivity extends Activity {
         LinearLayout ex = UI.card(this);
         ex.addView(label("More"));
         LinearLayout r1 = UI.row(this);
-        r1.addView(UI.btn(this, "Copy all", false, v -> UI.copy(this, "App Connect Key: " + ck + "\nLogin Key: " + app.optString("loginKey") + "\ndatabaseURL: " + base + "\n" + PERM)), UI.lp(this, 0, -2, 0, 0, 4, 0));
+        r1.addView(UI.btn(this, "Copy all", false, v -> UI.copy(this, "App Connect Key: " + ck + "\ndatabaseURL: " + base + "\n" + PERM)), UI.lp(this, 0, -2, 0, 0, 4, 0));
         r1.addView(UI.btn(this, "Duplicate", false, v -> duplicate(ck, app)), UI.lp(this, 0, -2, 4, 0, 0, 0));
         LinearLayout r2 = UI.row(this);
         r2.addView(UI.btn(this, "Export config", false, v -> exportCfg(app)), UI.lp(this, 0, -2, 0, 0, 4, 0));
@@ -740,6 +740,7 @@ public class MainActivity extends Activity {
                 .setMessage("This removes the app and its dialog config from Firebase. Apps using this connect key will stop showing the dialog.")
                 .setPositiveButton("Delete", (dd, w) -> req("DELETE", "levi_apps/" + ck, null, (r, e) -> {
                     req("DELETE", "levi_media/" + ck, null, (r2x, e2) -> { });
+                    req("DELETE", "levi_keys/" + ck, null, (r3x, e3) -> { });
                     apps.remove(ck);
                     pop();
                     refreshHome();
@@ -751,33 +752,11 @@ public class MainActivity extends Activity {
         return page;
     }
 
-    View loginRow(final String ck, final JSONObject app) {
-        final LinearLayout c = UI.card(this);
-        c.addView(label("Login Key"));
-        LinearLayout r = UI.row(this);
-        final TextView v = UI.tv(this, app.optString("loginKey"), 13, UI.tx(), false);
-        v.setTypeface(Typeface.MONOSPACE);
-        v.setTextIsSelectable(true);
-        r.addView(v, new LinearLayout.LayoutParams(0, -2, 1f));
-        r.addView(UI.btn(this, "Copy", false, x -> UI.copy(this, app.optString("loginKey"))));
-        c.addView(r, UI.lp(this, -1, -2, 0, 8, 0, 6));
-        c.addView(UI.btn(this, "Regenerate (users must verify again)", false, x -> {
-            final String nk = Levi.randKey("LEVI");
-            req("PUT", "levi_apps/" + ck + "/loginKey", JSONObject.quote(nk), (rr, e) -> {
-                if (e != null) { UI.toast(this, "Failed"); return; }
-                try { app.put("loginKey", nk); } catch (Exception ex) { /* ignore */ }
-                v.setText(nk);
-                UI.toast(this, "New login key");
-            });
-        }));
-        return c;
-    }
-
     void duplicate(final String ck, JSONObject app) {
         try {
             final String nk = Levi.randKey("LV");
             JSONObject a = new JSONObject(app.toString());
-            a.put("name", app.optString("name") + " copy").put("loginKey", Levi.randKey("LEVI")).put("enabled", false).put("created", System.currentTimeMillis());
+            a.put("name", app.optString("name") + " copy").put("enabled", false).put("created", System.currentTimeMillis());
             final JSONObject fa = a;
             req("PUT", "levi_apps/" + nk, a.toString(), (r, e) -> {
                 if (e != null) { UI.toast(this, "Failed"); return; }
@@ -822,10 +801,10 @@ public class MainActivity extends Activity {
         String[][] g = {
                 {"1  Firebase setup", "Create a Firebase project \u2192 Realtime Database \u2192 Create. Copy the databaseURL. Open the Rules tab and paste the rules below, then Publish.\n\nTip: these rules are open for the levi_* paths only. For tighter security move to Firebase Auth later.", RULES},
                 {"2  Connect + admin key", "Open Levi Admin, paste the databaseURL, tap Connect. First time you create an admin key (use the eye icon to see it). Next time you open the app, enter that key to get in.", null},
-                {"3  Add an app", "Tap + and give a name, short detail and an icon (gallery or URL). The date is automatic. Every app gets its own App Connect Key (LV-XXX-XXX-ST) and Login Key (LEVI-XXX-XXX-ST).", null},
+                {"3  Add an app", "Tap + and give a name, short detail and an icon (gallery or URL). The date is automatic. Every app gets its own App Connect Key (LV-XXX-XXX-ST). Tap the app to open its Login Keys page, where you create as many user keys as you want (LEVI-XXX-XXX-ST).", null},
                 {"4  Put the dialog in your APK", "Add Levi.java (package com.levi.dialog) + assets/fonts to the target app and call Levi.show(this) in the main activity. Or use the Levi APK as a donor. Make sure the app has the INTERNET permission line shown on the app page.\n\nWith MT Manager: open classes.dex \u2192 com/levi/dialog/Levi.smali \u2192 replace the string \"https://YOUR-PROJECT-default-rtdb.firebaseio.com\" with your databaseURL and \"LV-XXX-XXX-ST\" with the App Connect Key. Save + sign.", null},
                 {"5  Enable + design", "Open the app page \u2192 turn on Dialog Show. Tap Edit: pick one of 8 premium dialog designs (Classic Glass, Neon Cyber, Hero Banner, Bottom Sheet, iOS Frost, Ticket Pass, Terminal, Aurora Orb), then tweak media, colours, fonts, shape and 20 entrance animations with the live preview on top. Save, and the dialog updates itself within a few seconds (it re-checks every 4 s while visible).", null},
-                {"6  How verification works", "Until the user types the correct Login Key the dialog stays and Back closes the app. After success it is remembered on the device. Regenerate the Login Key to force everyone to verify again. Dialog Show off = no dialog.", null},
+                {"6  How verification works", "Each user gets their own Login Key (name, expiry, device limit). A key works on ONE device by default: the first device that verifies it is bound to it. Expiry uses Firebase server time, and the app re-checks the key every few minutes, so disabling, deleting or expiring a key locks that user out quickly. Dialog Show off = no dialog.", null},
                 {"7  Troubleshooting", "\u2022 Permission denied \u2192 check the rules.\n\u2022 Dialog never shows \u2192 Dialog Show is off or the connect key in smali is wrong.\n\u2022 Video too big \u2192 use a URL or keep it under 6 MB.\n\u2022 Fonts missing \u2192 assets/fonts must contain the .ttf files.", null}};
         for (int i = 0; i < g.length; i++) {
             final LinearLayout card = UI.card(this);
@@ -906,6 +885,27 @@ public class MainActivity extends Activity {
         c.addView(vd, UI.lp(this, -1, -2, 0, 0, 0, 12));
         UI.pop(vd, 1);
 
+        LinearLayout lk = UI.card(this);
+        lk.addView(label("Login keys defaults"));
+        final String[] expN = {"1 day", "7 days", "30 days", "90 days", "1 year", "Never"};
+        LinearLayout er = UI.row(this);
+        er.addView(UI.tv(this, "Default expiry", 15, UI.tx(), true), new LinearLayout.LayoutParams(0, -2, 1f));
+        er.addView(UI.tv(this, expN[Math.min(5, sp.getInt("defexp", 2))] + "  \u25BE", 13, UI.PRI, true));
+        er.setPadding(0, UI.dp(this, 10), 0, UI.dp(this, 6));
+        er.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Default expiry").setItems(expN, (d, w) -> { sp.edit().putInt("defexp", w).apply(); refreshHome(); }).show());
+        lk.addView(er);
+        lk.addView(sliderRow("Default devices per key", 1, 5, sp.getInt("defdev", 1), "", val -> sp.edit().putInt("defdev", val).apply()));
+        final EditText pf = UI.edit(this, "Key prefix (LEVI)", false);
+        pf.setText(sp.getString("defprefix", "LEVI"));
+        pf.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence x, int a2, int b2, int c2) { }
+            @Override public void onTextChanged(CharSequence x, int a2, int b2, int c2) { }
+            @Override public void afterTextChanged(Editable ed) { sp.edit().putString("defprefix", ed.toString().trim().toUpperCase().replaceAll("[^A-Z0-9]", "")).apply(); }
+        });
+        lk.addView(pf, UI.lp(this, -1, -2, 0, 10, 0, 0));
+        c.addView(lk, UI.lp(this, -1, -2, 0, 0, 0, 12));
+        UI.pop(lk, 2);
+
         LinearLayout s = UI.card(this);
         s.addView(label("Security"));
         s.addView(switchRow("Stay signed in", "Skip the admin key on this device", sp.getBoolean("remember", false), (b, on) -> {
@@ -924,7 +924,7 @@ public class MainActivity extends Activity {
         dis.setTextColor(UI.RED);
         d.addView(dis);
         c.addView(d, UI.lp(this, -1, -2, 0, 0, 0, 12));
-        TextView about = UI.tv(this, "Levi Admin 2.0  \u2022  TENIx", 12, UI.sub(), false);
+        TextView about = UI.tv(this, "Levi Admin 2.3.0  \u2022  TENIx", 12, UI.sub(), false);
         about.setGravity(Gravity.CENTER);
         c.addView(about, UI.lp(this, -1, -2, 0, 8, 0, 20));
         return scroll(c);

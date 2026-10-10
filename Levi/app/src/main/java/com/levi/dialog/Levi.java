@@ -33,7 +33,9 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
@@ -76,6 +78,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
+import java.util.Locale;
 import java.util.Random;
 
 /**
@@ -253,6 +256,110 @@ public class Levi {
             final String fr = r, fe = er;
             main.post(() -> cb.done(fr, fe));
         }).start();
+    }
+
+    public static class Resp { public int code; public String body = ""; public String etag; }
+
+    /** HTTP that does not throw on 4xx (needed for ETag conditional writes -> 412). */
+    public static Resp httpR(String method, String url, String body, String ifMatch, boolean wantEtag) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(9000);
+        c.setReadTimeout(25000);
+        c.setRequestMethod(method);
+        if (wantEtag) c.setRequestProperty("X-Firebase-ETag", "true");
+        if (ifMatch != null) c.setRequestProperty("if-match", ifMatch);
+        if (body != null) {
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json");
+            c.getOutputStream().write(body.getBytes("UTF-8"));
+        }
+        Resp r = new Resp();
+        r.code = c.getResponseCode();
+        InputStream in = r.code >= 400 ? c.getErrorStream() : c.getInputStream();
+        r.body = in == null ? "" : new String(readAll(in), "UTF-8");
+        r.etag = c.getHeaderField("ETag");
+        return r;
+    }
+
+    static String devId;
+
+    /** Stable per-install device id (hashed ANDROID_ID). */
+    public static String deviceId(Context c) {
+        if (devId != null) return devId;
+        String a = null;
+        try { a = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ANDROID_ID); } catch (Exception e) { /* ignore */ }
+        SharedPreferences sp = c.getSharedPreferences("levi_auth", 0);
+        if (a == null || a.isEmpty() || a.equals("9774d56d682e549c")) {
+            a = sp.getString("did", "");
+            if (a.isEmpty()) { a = Long.toHexString(new Random().nextLong()) + Long.toHexString(System.nanoTime()); sp.edit().putString("did", a).apply(); }
+        }
+        devId = sha256(a + "|levi").substring(0, 20);
+        return devId;
+    }
+
+    /** Firebase server time (tamper-proof expiry checks). */
+    static long serverNow(String ck, String dev) {
+        try {
+            Resp r = httpR("PUT", dbBase + "/levi_ping/" + ck + "_" + dev + ".json", "{\".sv\":\"timestamp\"}", null, false);
+            if (r.code < 400) return Long.parseLong(r.body.trim());
+        } catch (Exception e) { /* fall back to device clock */ }
+        return System.currentTimeMillis();
+    }
+
+    public static class VR { public boolean ok; public String msg = ""; public long exp; }
+
+    static VR fail(String m) { VR v = new VR(); v.msg = m; return v; }
+
+    /**
+     * Checks a login key against levi_keys/<connectKey>/<key>:
+     * status, server-time expiry, and device binding (one key = one device by default).
+     * silent=true: re-check of an already verified key (never binds a new device).
+     */
+    public static VR verifyKey(Context ctx, String raw, boolean silent, String legacyKey) throws Exception {
+        String key = raw.trim().toUpperCase(Locale.US);
+        if (!key.matches("[A-Z0-9_-]{4,48}")) return fail("Invalid key");
+        String dev = deviceId(ctx), model = (Build.MANUFACTURER + " " + Build.MODEL).trim();
+        long now = serverNow(dbCk, dev);
+        String url = dbBase + "/levi_keys/" + dbCk + "/" + key + ".json";
+        for (int attempt = 0; attempt < 3; attempt++) {
+            Resp r = httpR("GET", url, null, null, true);
+            if (r.code >= 400) throw new Exception("HTTP " + r.code + " " + r.body);
+            if (r.body.trim().equals("null")) {
+                if (legacyKey != null && !legacyKey.isEmpty() && legacyKey.equalsIgnoreCase(key)) { VR v = new VR(); v.ok = true; return v; }
+                return fail("Invalid key");
+            }
+            JSONObject o = new JSONObject(r.body);
+            String st = o.optString("status", "active");
+            if (st.equals("deleted")) return fail("Invalid key");
+            if (st.equals("inactive")) return fail("This key is disabled");
+            if (st.equals("draft")) return fail("This key is not activated yet");
+            long exp = o.optLong("expiry", 0);
+            if (exp > 0 && now > exp) return fail("This key has expired");
+            JSONObject devs = o.optJSONObject("devices");
+            if (devs == null) devs = new JSONObject();
+            boolean has = devs.has(dev);
+            int max = Math.max(1, o.optInt("maxDevices", 1));
+            if (!has) {
+                if (silent) return fail("Please verify your key again");
+                if (devs.length() >= max) return fail(max == 1 ? "This key is already used on another device" : "Device limit reached for this key");
+                devs.put(dev, new JSONObject().put("m", model).put("t", now));
+                o.put("devices", devs);
+                if (!o.has("firstUse")) o.put("firstUse", now);
+                long dur = o.optLong("dur", 0);
+                if (dur > 0 && exp == 0) { exp = now + dur; o.put("expiry", exp); }   // countdown starts on first login
+            }
+            if (silent && has) {
+                httpR("PUT", dbBase + "/levi_keys/" + dbCk + "/" + key + "/lastSeen.json", String.valueOf(now), null, false);
+                VR v = new VR(); v.ok = true; v.exp = exp; return v;
+            }
+            o.put("lastSeen", now).put("lastDev", model);
+            if (!silent) o.put("uses", o.optInt("uses", 0) + 1);
+            Resp w = httpR("PUT", url, o.toString(), r.etag, false);
+            if (w.code == 412) continue;                       // changed by someone else meanwhile -> retry
+            if (w.code >= 400) throw new Exception("HTTP " + w.code + " " + w.body);
+            VR v = new VR(); v.ok = true; v.exp = exp; return v;
+        }
+        return fail("Server busy, try again");
     }
 
     /** Firebase returns a JSON string with quotes; unwrap it. */
@@ -1293,7 +1400,7 @@ public class Levi {
             a.getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 @Override public void onActivityCreated(Activity x, Bundle b) { }
                 @Override public void onActivityStarted(Activity x) { }
-                @Override public void onActivityResumed(Activity x) { ensure(x); }
+                @Override public void onActivityResumed(Activity x) { ensure(x); recheck(x); }
                 @Override public void onActivityPaused(Activity x) { }
                 @Override public void onActivityStopped(Activity x) { }
                 @Override public void onActivitySaveInstanceState(Activity x, Bundle b) { }
@@ -1305,6 +1412,16 @@ public class Levi {
         ensure(a);
     }
 
+    static long lastCheck = 0;
+
+    /** every few minutes (on resume) re-validate the saved key: disabled / expired / device removed => dialog again */
+    static void recheck(Activity a) {
+        if (!passed || System.currentTimeMillis() - lastCheck < 180000) return;
+        if (a.getSharedPreferences("levi_auth", 0).getString("ok_" + dbCk, "").isEmpty()) return;
+        lastCheck = System.currentTimeMillis();
+        new Host(a).start();
+    }
+
     static void ensure(Activity a) {
         if (passed || a.isFinishing()) return;
         if (cur != null && cur.a == a && !cur.closed) return;
@@ -1312,7 +1429,7 @@ public class Levi {
         SharedPreferences sp = a.getSharedPreferences("levi_auth", 0);
         if (!sp.getString("ok_" + dbCk, "").isEmpty()) {
             // verified before: let the app run, silently re-check once (key rotated => ask again)
-            if (!silentStarted) { silentStarted = true; passed = true; new Host(a).start(); }
+            if (!silentStarted) { silentStarted = true; passed = true; lastCheck = System.currentTimeMillis(); new Host(a).start(); }
             return;
         }
         cur = new Host(a);
@@ -1341,18 +1458,7 @@ public class Levi {
 
         void start() {
             final String saved = sp.getString("ok_" + dbCk, "");
-            if (!saved.isEmpty()) {
-                async("GET", url(), null, (r, er) -> {
-                    if (er != null || !parse(r)) return;
-                    if (enabled && !loginKey.isEmpty() && !loginKey.equals(saved)) {
-                        sp.edit().remove("ok_" + dbCk).apply();
-                        passed = false;
-                        cur = this;
-                        present();
-                    }
-                });
-                return;
-            }
+            if (!saved.isEmpty()) { silent(saved); return; }
             showLoading();
             async("GET", url(), null, (r, er) -> {
                 dismissLoading();
@@ -1363,6 +1469,29 @@ public class Levi {
                 if (er != null) toast("No connection to server");
                 else if (!found) toast("Invalid app connect key / database");
             });
+        }
+
+        /** background re-check of an already verified key (offline = allowed) */
+        void silent(final String saved) {
+            new Thread(() -> {
+                String msg = null;
+                try {
+                    parse(http("GET", url(), null));
+                    if (!(found && !enabled)) {
+                        VR vr = verifyKey(a, saved, true, loginKey);
+                        if (!vr.ok) msg = vr.msg;
+                    }
+                } catch (Exception ex) { /* offline: keep access */ }
+                final String fm = msg;
+                main.post(() -> {
+                    if (fm == null || closed || a.isFinishing()) return;
+                    sp.edit().remove("ok_" + dbCk).apply();
+                    passed = false;
+                    cur = this;
+                    present();
+                    toast(fm);
+                });
+            }).start();
         }
 
         boolean parse(String r) {
@@ -1449,7 +1578,7 @@ public class Levi {
                     if (er == null && !closed) {
                         String before = raw;
                         parse(r);
-                        if (found && !enabled) { closeOk(false); return; }
+                        if (found && !enabled) { closeOk(false, ""); return; }
                         if (!before.equals(raw) && card != null) { card.apply(cfg); place(); }
                     }
                     poll();
@@ -1457,9 +1586,9 @@ public class Levi {
             }, 4000);
         }
 
-        void closeOk(boolean verified) {
+        void closeOk(boolean verified, String key) {
             closed = true; passed = true;
-            if (verified) sp.edit().putString("ok_" + dbCk, loginKey).apply();
+            if (verified) sp.edit().putString("ok_" + dbCk, key).apply();
             final Card c = card;
             c.animate().alpha(0f).scaleX(.9f).scaleY(.9f).setDuration(180).withEndAction(() -> {
                 try { dlg.dismiss(); } catch (Exception ex) { /* ignore */ }
@@ -1473,16 +1602,27 @@ public class Levi {
             busy = true;
             final CharSequence old = card.verifyBtn.getText();
             card.verifyBtn.setText("...");
-            async("GET", url(), null, (r, er) -> {
-                busy = false;
-                card.verifyBtn.setText(old);
-                if (er != null) { toast("No connection to server"); return; }
-                parse(r);
-                if (!found) { card.shake(); toast("Invalid app connect key / database"); return; }
-                if (!enabled) { closeOk(false); return; }
-                if (!loginKey.isEmpty() && v.equals(loginKey)) { toast("Verified"); closeOk(true); }
-                else { card.shake(); toast("Invalid key"); }
-            });
+            new Thread(() -> {
+                VR vr = null;
+                String er = null;
+                try {
+                    parse(http("GET", url(), null));
+                    if (!found) vr = fail("Invalid app connect key / database");
+                    else if (!enabled) { vr = new VR(); vr.ok = true; }
+                    else vr = verifyKey(a, v, false, loginKey);
+                } catch (Exception ex) { er = "No connection to server"; }
+                final VR fv = vr;
+                final String fe = er;
+                main.post(() -> {
+                    busy = false;
+                    card.verifyBtn.setText(old);
+                    if (fe != null || fv == null) { toast(fe == null ? "Error" : fe); return; }
+                    if (fv.ok) {
+                        toast(fv.exp > 0 ? "Verified - valid until " + new java.text.SimpleDateFormat("dd MMM yyyy", Locale.US).format(new java.util.Date(fv.exp)) : "Verified");
+                        closeOk(enabled, v.toUpperCase(Locale.US));
+                    } else { card.shake(); toast(fv.msg); }
+                });
+            }).start();
         }
 
         void openGetKey() {
